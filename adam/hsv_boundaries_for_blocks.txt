@@ -1,0 +1,5 @@
+Data in format:
+upper_value, lower_value, upper_saturation, lower_saturation, upper_hue, lower_hue
+
+green block:
+255, 0, 255, 40, 82, 59
