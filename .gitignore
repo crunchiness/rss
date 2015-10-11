@@ -63,3 +63,4 @@ target/
 
 iotools.py
 sandbox.py
+venv/
