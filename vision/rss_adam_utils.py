@@ -126,4 +126,7 @@ def determine_boundaries(file):
     slv.on_changed(update)
     suv.on_changed(update)
 
+    # mng = plt.get_current_fig_manager()
+    # mng.full_screen_toggle()
+
     plt.show()
