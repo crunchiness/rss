@@ -130,3 +130,27 @@ def determine_boundaries(file):
     # mng.full_screen_toggle()
 
     plt.show()
+
+def inrange_red(file):
+    RED_MIN_1 = np.array([0, 100, 0], np.uint8)
+    RED_MAX_1 = np.array([5, 255, 255], np.uint8)
+
+    RED_MIN_2 = np.array([173, 100, 0], np.uint8)
+    RED_MAX_2 = np.array([180, 255, 255], np.uint8)
+
+    img_bgr = cv2.imread(file)
+    img_hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
+
+    frame_threshed_1 = cv2.inRange(img_hsv, RED_MIN_1, RED_MAX_1)
+    frame_threshed_2 = cv2.inRange(img_hsv, RED_MIN_2, RED_MAX_2)
+    frame_threshed = cv2.bitwise_or(frame_threshed_1, frame_threshed_2)
+
+    print frame_threshed
+    print np.count_nonzero(frame_threshed)
+    print frame_threshed.size
+
+    print float(np.count_nonzero(frame_threshed))/float(frame_threshed.size)*100.0
+
+    img_to_display = cv2.bitwise_and(img_hsv, img_hsv, mask=frame_threshed)
+
+    return img_to_display
