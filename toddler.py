@@ -2,38 +2,48 @@
 __TODDLER_VERSION__ = '1.0.0'
 
 import time
+from body.motors import Motors
+from body.sensors import Sensors, SensorRunningAverage
 
 
 class Toddler:
-    def __init__(self, IO):
-        print '{{some cool name}} has awoken... Beware.'
-        self.IO = IO
+    def __init__(self, io):
+        print 'Toddler, the dragon has awoken... Beware.'
+        self.io = io
+        self.motors = Motors(io)
+        self.sensors = Sensors(io)
 
-    def move(self, l=100, r=100):
-        self.IO.setMotors(l, -r)
+    def stop(self):
+        """For development only"""
+        self.motors.halt()
+        time.sleep(1000)
 
-    def close_gate(self):
-        self.IO.servoEngage()
-        self.IO.servoSet(0)
-        time.sleep(2)  # seems like we need this for servo?
-        self.IO.servoDisengage()
+    def avoid_obstacles(self):
+        left_ir = SensorRunningAverage()
+        right_ir = SensorRunningAverage()
 
-    def open_gate(self):
-        self.IO.servoEngage()
-        self.IO.servoSet(180)
-        time.sleep(2)
-        self.IO.servoDisengage()
+        left_avg = left_ir.get_avg()
+        right_avg = right_ir.get_avg()
+
+        while left_avg > 15 and right_avg > 15:
+            left_ir.add_value(self.sensors.get_ir_left())
+            right_ir.add_value(self.sensors.get_ir_right())
+            self.motors.move(100, 100)
+            left_avg = left_ir.get_avg()
+            right_avg = right_ir.get_avg()
+
+        if left_avg <= 15:
+            self.motors.turn_by(30)
+        elif right_avg <= 15:
+            self.motors.turn_by(-30)
 
     # This is a callback that will be called repeatedly.
     # It has its dedicated thread so you can keep block it.
-    def Control(self, OK):
-        while OK():
-            self.open_gate()
-            time.sleep(5)
-            self.close_gate()
-            time.sleep(5)
+    def Control(self, ok):
+        while ok():
+            self.avoid_obstacles()
 
     # This is a callback that will be called repeatedly.
     # It has its dedicated thread so you can keep block it.
-    def Vision(self, OK):
+    def Vision(self, ok):
         pass
