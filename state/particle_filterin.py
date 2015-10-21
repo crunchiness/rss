@@ -1,6 +1,6 @@
 import numpy as np
 import random
-from math import pi, exp, sqrt, sin, cos, tan
+from math import pi, sqrt, sin, cos, tan
 from scipy.stats import norm
 
 # implemented from http://stackoverflow.com/a/565282
@@ -13,20 +13,22 @@ def intersects_at_helper(p, r, q, s):
     rs = np.cross(r, s)
     t = np.cross(qp, s) / rs
     u = np.cross(qp, r) / rs
-    return (t, u)
+    return t, u
+
 
 def intersects_at((p, r), (q, s)):
     t, u = intersects_at_helper(p, r, q, s)
 
-    if t >= 0 and t <= 1 and u >= 0 and u <= 1:
+    if 0 <= t <= 1 and 0 <= u <= 1:
         return np.add(p, np.multiply(t, r))
     else:
         return None
 
+
 def intersects((p, r), (q, s)):
     t, u = intersects_at_helper(p, r, q, s)
 
-    if t >= 0.0 and t <= 1.0 and u >= 0.0 and u <= 1.0:
+    if 0.0 <= t <= 1.0 and 0.0 <= u <= 1.0:
         return True
     else:
         return False
@@ -41,7 +43,7 @@ arena_walls = [
 
 
 # adapted from http://pastebin.com/Jfyyyhxk
-class particles:
+class Particles:
     # init: creates particle set with given initial position
     def __init__(self, x, y, theta,
                  steering_noise, distance_noise, measurement_noise, N=100):
@@ -52,7 +54,7 @@ class particles:
 
         self.data = []
         for i in range(self.N):
-            r = robot()
+            r = Robot()
             r.set(x, y, theta)
             r.set_noise(steering_noise, distance_noise, measurement_noise)
             self.data.append(r)
@@ -112,7 +114,7 @@ class particles:
         self.data = p3
 
 
-class robot:
+class Robot:
     # --------
     # init:
     # creates robot and initializes location/orientation to 0, 0, 0
@@ -137,13 +139,12 @@ class robot:
             ([21.0, -13.0], [-32.0, 0.0])
         ]
 
-        self.IR_sensors_locations = [[7.5, 21.0],[-7.5, 21.0]]
+        self.IR_sensors_locations = [[7.5, 21.0], [-7.5, 21.0]]
 
     def set(self, new_x, new_y, new_orientation):
         self.x = float(new_x)
         self.y = float(new_y)
         self.orientation = float(new_orientation) % (2.0 * pi)
-
 
     def set_noise(self, new_s_noise, new_d_noise, new_m_noise):
         # makes it possible to change the noise parameters
@@ -152,21 +153,16 @@ class robot:
         self.distance_noise = float(new_d_noise)
         self.measurement_noise = float(new_m_noise)
 
-    def at_orientation(self, vec):
-        rotMatrix = np.array([
+    def at_orientation(self, vectors):
+
+        rot_matrix = np.array([
             [np.cos(self.orientation), -np.sin(self.orientation)],
-            [np.sin(self.orientation),  np.cos(self.orientation)]
+            [np.sin(self.orientation), np.cos(self.orientation)]
         ])
-
-        return np.multiply(rotMatrix, vec)
-
-    def at_orientation(self, (vec1, vec2)):
-        rotMatrix = np.array([
-            [np.cos(self.orientation), -np.sin(self.orientation)],
-            [np.sin(self.orientation),  np.cos(self.orientation)]
-        ])
-
-        return [np.multiply(rotMatrix, vec1), np.multiply(rotMatrix, vec2)]
+        if type(vectors) is tuple:
+            return [np.multiply(rot_matrix, vectors[0]), np.multiply(rot_matrix, vectors[1])]
+        else:
+            return np.multiply(rot_matrix, input)
 
     # --------
     # check:
@@ -195,9 +191,8 @@ class robot:
         if distance < 0.0:
             distance = 0.0
 
-
         # make a new copy
-        res = robot()
+        res = Robot()
         res.length = self.length
         res.steering_noise = self.steering_noise
         res.distance_noise = self.distance_noise
@@ -208,7 +203,6 @@ class robot:
         # apply noise
         steering2 = random.gauss(steering, self.steering_noise)
         distance2 = random.gauss(distance, self.distance_noise)
-
 
         # Execute motion
         turn = tan(steering2) * distance2 / res.length
@@ -238,7 +232,7 @@ class robot:
         return res
 
     def sense(self):
-        beam = self.at_orientation([0, sqrt(2*((5*106.5)**2))])
+        beam = self.at_orientation([0, sqrt(2 * ((5 * 106.5) ** 2))])
         location = [self.x, self.y]
         left = np.add(location, self.IR_sensors_locations[0])
         right = np.add(location, self.IR_sensors_locations[1])
@@ -257,14 +251,13 @@ class robot:
         return [random.gauss(distances[0], self.measurement_noise),
                 random.gauss(distances[1], self.measurement_noise)]
 
-
     # --------
     # measurement_prob
     #    computes the probability of a measurement
     #
 
     def measurement_prob(self, measurement):
-        beam = self.at_orientation([0, sqrt(2*((5*106.5)**2))])
+        beam = self.at_orientation([0, sqrt(2 * ((5 * 106.5) ** 2))])
         location = [self.x, self.y]
         left = np.add(location, self.IR_sensors_locations[0])
         right = np.add(location, self.IR_sensors_locations[1])
@@ -283,18 +276,16 @@ class robot:
         prob = 1
         for distance in distances:
             if distance < 10 or distance > 80:
-                prob *= 1.0/np.abs(beam)
+                prob *= 1.0 / np.abs(beam)
             else:
-                prob *= norm.pdf(error[0], self.measurement_noise)
-
-
+                pass
+                # prob *= norm.pdf(error[0], self.measurement_noise)
 
         error = measurement - [distances[0], distances[1]]
         error = norm.pdf(error[0], self.measurement_noise)
         error *= norm.pdf(error[1], self.measurement_noise)
 
         return prob
-
 
     def __repr__(self):
         # return '[x=%.5f y=%.5f orient=%.5f]'  % (self.x, self.y, self.orientation)
