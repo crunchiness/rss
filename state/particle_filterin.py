@@ -1,7 +1,6 @@
 import numpy as np
 import random
 from math import pi, sqrt, sin, cos, tan
-from scipy.stats import norm
 
 # implemented from http://stackoverflow.com/a/565282
 # line segments p to p+r and q to q+s
@@ -280,10 +279,11 @@ class Robot:
             else:
                 pass
                 # prob *= norm.pdf(error[0], self.measurement_noise)
-
-        error = measurement - [distances[0], distances[1]]
-        error = norm.pdf(error[0], self.measurement_noise)
-        error *= norm.pdf(error[1], self.measurement_noise)
+        # We don't have scipy :(
+        # http://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.norm.html#scipy.stats.norm
+        # error = measurement - [distances[0], distances[1]]
+        # error = norm.pdf(error[0], self.measurement_noise)
+        # error *= norm.pdf(error[1], self.measurement_noise)
 
         return prob
 
