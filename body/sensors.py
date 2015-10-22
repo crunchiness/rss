@@ -1,7 +1,7 @@
 """
 Port mapping
 
-0: left IR sensor
+0: front IR sensor
 1: right IR sensor
 """
 
@@ -19,15 +19,15 @@ class Sensors:
     def get_analogue(self):
         self.analogue = self.io.getSensors()
 
-    def get_ir_left_raw(self):
+    def get_ir_front_raw(self):
         """
         :rtype : float
         """
         self.get_analogue()
         return self.analogue[0]
 
-    def get_ir_left(self):
-        return ir_input_to_distance(self.get_ir_left_raw())
+    def get_ir_front(self):
+        return ir_input_to_distance(self.get_ir_front_raw())
 
     def get_ir_right_raw(self):
         """

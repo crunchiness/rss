@@ -20,21 +20,28 @@ class Toddler:
         self.motors.halt()
         time.sleep(1000)
 
+    def view_360(self):
+        n = 12
+        for i in xrange(n):
+            self.vision.do_image()
+            self.motors.turn_by(360/n)
+        self.stop()
+
     def avoid_obstacles(self):
-        left_ir = SensorRunningAverage()
+        front_ir = SensorRunningAverage()
         right_ir = SensorRunningAverage()
 
-        left_avg = left_ir.get_avg()
+        front_avg = front_ir.get_avg()
         right_avg = right_ir.get_avg()
 
-        while left_avg > 15 and right_avg > 15:
-            left_ir.add_value(self.sensors.get_ir_left())
+        while front_avg > 15 and right_avg > 15:
+            front_ir.add_value(self.sensors.get_ir_front())
             right_ir.add_value(self.sensors.get_ir_right())
             self.motors.move(100, 100)
-            left_avg = left_ir.get_avg()
+            front_avg = front_ir.get_avg()
             right_avg = right_ir.get_avg()
 
-        if left_avg <= 15:
+        if front_avg <= 15:
             self.motors.turn_by(30)
         elif right_avg <= 15:
             self.motors.turn_by(-30)
@@ -43,10 +50,11 @@ class Toddler:
     # It has its dedicated thread so you can keep block it.
     def Control(self, ok):
         while ok():
-            self.avoid_obstacles()
+            self.view_360()
 
     # This is a callback that will be called repeatedly.
     # It has its dedicated thread so you can keep block it.
     def Vision(self, ok):
         while ok():
-            self.vision.do_image()
+            pass
+            # self.vision.do_image()

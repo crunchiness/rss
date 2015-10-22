@@ -2,14 +2,15 @@ from __future__ import division
 
 import numpy as np
 import random
-from math import pi, exp, sqrt, sin, cos, tan
+from math import pi, exp, sqrt
+from state.map import X_MAX, Y_MAX, ARENA_WALLS
 from body.sensors import Sensors
 
 # normal pdf
 # http://stackoverflow.com/a/8669381/3160671
-def normpdf(x, mu, sigma):
-    u = (x-mu)/abs(sigma)
-    y = (1/(sqrt(2*pi)*abs(sigma)))*exp(-u*u/2)
+def norm_pdf(x, mu, sigma):
+    u = (x - mu) / abs(sigma)
+    y = (1 / (sqrt(2 * pi) * abs(sigma))) * exp(-u * u / 2)
     return y
 
 # implemented from http://stackoverflow.com/a/565282
@@ -43,50 +44,6 @@ def intersects((p, r), (q, s)):
     else:
         return False
 
-x_max = 106.5 * 3
-y_max = 106.5 * 5
-
-# edge r to r+s, tuples in the (r, s) format, not (r, r+s)
-arena_walls = [
-    ([0.0, 0.0], [0.0, y_max]),
-    ([0.0, 0.0], [x_max, 0.0]),
-    ([0.0, y_max], [x_max, 0.0]),
-    ([x_max, 0.0], [0.0, y_max]),
-
-    ([143.0, 0.0], [0.0, 93.0]),
-    ([143.0, 93.0], [32.0, 0.0]),
-
-    ([0.0, 132.0], [74.0, 0.0]),
-
-    ([0.0, 294.0], [93.0, 0.0]),
-    ([93.0, 294.0], [0.0, 46.0]),
-    ([93.0, 340.0], [34.0, 0.0]),
-
-    ([x_max, 231.0], [-93.0, 0.0]),
-    ([x_max-93.0, 231.0], [0.0, -46.0]),
-    ([x_max-93.0, 231.0-46.0], [-34.0, 0.0]),
-
-    ([x_max, y_max-132.0], [-74.0, 0.0]),
-
-    ([177.0, y_max], [0.0, -93.0]),
-    ([177.0, y_max-93.0], [-32.0, 0.0]),
-
-    ([x_max-70.0, 91.0], [-23.0, 0.0]),
-    ([x_max-70.0, 91.0], [0.0, 23.0]),
-    ([x_max-93.0, 114.0], [23.0, 0.0]),
-    ([x_max-93.0, 114.0], [0.0, -23.0]),
-
-    ([70.0, y_max-91.0], [23.0, 0.0]),
-    ([70.0, y_max-91.0], [0.0, -23.0]),
-    ([93.0, y_max-114.0], [-23.0, 0.0]),
-    ([93.0, y_max-114.0], [0.0, 23.0]),
-
-    ([x_max-143.0, 234.0], [-38.0, 0.0]),
-    ([x_max-143.0, 234.0], [0.0, 31.0]),
-    ([x_max-143.0-38.0, 234.0+31.0], [38.0, 0.0]),
-    ([x_max-143.0-38.0, 234.0+31.0], [0.0, -31.0])
-]
-
 # adapted from http://pastebin.com/Jfyyyhxk
 class Particles:
     # init: creates particle set with given initial position
@@ -98,9 +55,9 @@ class Particles:
         self.data = []
         n_added = 0
         while n_added < n:
-            #random coordinates and orientation
-            x = random.random() * x_max
-            y = random.random() * y_max
+            # random coordinates and orientation
+            x = random.random() * X_MAX
+            y = random.random() * Y_MAX
             orientation = random.random() * 2.0 * pi
 
             r = Robot(self.sensors)
@@ -156,6 +113,7 @@ class Particles:
             p3.append(self.data[index])
         self.data = p3
 
+
 class Robot:
     def __init__(self, sensors=None):
         self.sensors = sensors
@@ -164,7 +122,7 @@ class Robot:
         self.y = 0.0
         self.orientation = 0.0
 
-        self.rotation_std_abs = (5.0/360.0)*2.0*pi
+        self.rotation_std_abs = (5.0 / 360.0) * 2.0 * pi
         self.forward_std_frac = 0.1
 
         # edge r to r+s, tuples in the (r, s) format, not (r, r+s)
@@ -175,8 +133,8 @@ class Robot:
             ([21.0, -13.0], [-32.0, 0.0])
         ]
 
-        self.IR_sensors_locations = [([0.0, 21.0], 0.0), ([-7.5, 15.0], pi/2.0)]
-        self.max_beam_range = sqrt(2.0*((5*106.5)**2))
+        self.IR_sensors_locations = [([0.0, 21.0], 0.0), ([-7.5, 15.0], pi / 2.0)]
+        self.max_beam_range = sqrt(2.0 * ((5 * 106.5) ** 2))
 
     def set(self, new_x, new_y, new_orientation):
         self.x = float(new_x)
@@ -196,7 +154,7 @@ class Robot:
 
     # check: checks of the robot pose collides with an obstacle
     def check_collision(self):
-        for wall in arena_walls:
+        for wall in ARENA_WALLS:
             for edge in self.edges:
                 if intersects(wall, self.at_orientation(edge, self.orientation)):
                     return False
@@ -209,7 +167,7 @@ class Robot:
         location = [self.x, self.y]
         orientation = self.orientation
 
-        #TODO drift
+        # TODO drift
 
         if rotation is not 0:
             rotation2 = random.gauss(rotation, self.rotation_std_abs)
@@ -231,7 +189,7 @@ class Robot:
         return res
 
     def sense(self):
-          return [self.sensors.get_ir_left(), self.sensors.get_ir_right()]
+        return [self.sensors.get_ir_left(), self.sensors.get_ir_right()]
 
     def measurement_prob(self, measurement):
 
@@ -244,7 +202,7 @@ class Robot:
         distances = list()
         minimum_distance = self.max_beam_range
         for sensor, beam in (front, beam_front), (right, beam_right):
-            for wall in arena_walls:
+            for wall in ARENA_WALLS:
                 intersection = intersects_at(wall, (sensor, beam))
                 if intersection is not None:
                     distance = np.abs(np.subtract(intersection, location))
@@ -253,14 +211,14 @@ class Robot:
             distances.append(minimum_distance)
 
         error = 1
-        error *= self.measurement_prob_IR(measurement['IRfront'], distances[0])
-        error *= self.measurement_prob_IR(measurement['IRright'], distances[1])
+        error *= self.measurement_prob_ir(measurement['IRfront'], distances[0])
+        error *= self.measurement_prob_ir(measurement['IRright'], distances[1])
 
         return error
 
-    def measurement_prob_IR(self, measurement, predicted):
+    def measurement_prob_ir(self, measurement, predicted):
         prob_hit_std = 5.0
-        if predicted > 10 and predicted < 80:
+        if 10 < predicted < 80:
             prob_hit = exp(-(measurement - predicted) ** 2 / (prob_hit_std ** 2) / 2.0) \
                        / sqrt(2.0 * pi * (prob_hit_std ** 2))
         else:
@@ -273,7 +231,7 @@ class Robot:
         else:
             prob_unexpected = 0
 
-        prob_rand = 1/self.max_beam_range
+        prob_rand = 1 / self.max_beam_range
 
         if predicted > 80:
             prob_max = 1
