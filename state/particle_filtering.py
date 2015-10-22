@@ -5,8 +5,6 @@ import random
 from math import pi, exp, sqrt, sin, cos, tan
 from body.sensors import Sensors
 
-sensors = Sensors()
-
 # normal pdf
 # http://stackoverflow.com/a/8669381/3160671
 def normpdf(x, mu, sigma):
@@ -17,6 +15,7 @@ def normpdf(x, mu, sigma):
 # implemented from http://stackoverflow.com/a/565282
 # line segments p to p+r and q to q+s
 def intersects_at_helper(p, r, q, s):
+    print p, r, q, s
     if np.cross(r, s) == 0:
         return None
 
@@ -92,6 +91,8 @@ arena_walls = [
 class Particles:
     # init: creates particle set with given initial position
     def __init__(self, n=1000):
+        self.sensors = Sensors()
+
         self.N = n
 
         self.data = []
@@ -102,7 +103,7 @@ class Particles:
             y = random.random() * y_max
             orientation = random.random() * 2.0 * pi
 
-            r = Robot()
+            r = Robot(self.sensors)
             r.set(x, y, orientation)
 
             if not r.check_collision():
@@ -156,13 +157,12 @@ class Particles:
         self.data = p3
 
 class Robot:
-    def __init__(self, length=0.5):
+    def __init__(self, sensors=None):
+        self.sensors = sensors
+
         self.x = 0.0
         self.y = 0.0
         self.orientation = 0.0
-
-        self.rotation_during_forward_std_per_10cm = (1.0/360.0)*2.0*pi
-        self.forward_during_rotation_std = 2
 
         self.rotation_std_abs = (5.0/360.0)*2.0*pi
         self.forward_std_frac = 0.1
@@ -198,13 +198,13 @@ class Robot:
     def check_collision(self):
         for wall in arena_walls:
             for edge in self.edges:
-                if intersects(wall, self.at_orientation(edge)):
+                if intersects(wall, self.at_orientation(edge, self.orientation)):
                     return False
         return True
 
     def move(self, rotation, forward):
         # make a new copy
-        res = Robot()
+        res = Robot(self.sensors)
 
         location = [self.x, self.y]
         orientation = self.orientation
@@ -231,7 +231,7 @@ class Robot:
         return res
 
     def sense(self):
-          return [sensors.get_ir_left(), sensors.get_ir_right()]
+          return [self.sensors.get_ir_left(), self.sensors.get_ir_right()]
 
     def measurement_prob(self, measurement):
 
