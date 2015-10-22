@@ -4,6 +4,7 @@ __TODDLER_VERSION__ = '1.0.0'
 import time
 from body.motors import Motors
 from body.sensors import Sensors, SensorRunningAverage
+from vision.vision import Vision
 
 
 class Toddler:
@@ -12,6 +13,7 @@ class Toddler:
         self.io = io
         self.motors = Motors(io)
         self.sensors = Sensors(io)
+        self.vision = Vision(io)
 
     def stop(self):
         """For development only"""
@@ -46,4 +48,5 @@ class Toddler:
     # This is a callback that will be called repeatedly.
     # It has its dedicated thread so you can keep block it.
     def Vision(self, ok):
-        pass
+        while ok():
+            self.vision.do_image()

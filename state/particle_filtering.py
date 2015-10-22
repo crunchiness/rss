@@ -22,20 +22,22 @@ def intersects_at_helper(p, r, q, s):
     rs = np.cross(r, s)
     t = np.cross(qp, s) / rs
     u = np.cross(qp, r) / rs
-    return (t, u)
+    return t, u
+
 
 def intersects_at((p, r), (q, s)):
     t, u = intersects_at_helper(p, r, q, s)
 
-    if t >= 0 and t <= 1 and u >= 0 and u <= 1:
+    if 0 <= t <= 1 and 0 <= u <= 1:
         return np.add(p, np.multiply(t, r))
     else:
         return None
 
+
 def intersects((p, r), (q, s)):
     t, u = intersects_at_helper(p, r, q, s)
 
-    if t >= 0.0 and t <= 1.0 and u >= 0.0 and u <= 1.0:
+    if 0.0 <= t <= 1.0 and 0.0 <= u <= 1.0:
         return True
     else:
         return False
@@ -53,7 +55,7 @@ arena_walls = [
 
 
 # adapted from http://pastebin.com/Jfyyyhxk
-class particles:
+class Particles:
     # init: creates particle set with given initial position
     def __init__(self, n=1000):
         self.N = n
@@ -119,8 +121,13 @@ class particles:
             p3.append(self.data[index])
         self.data = p3
 
-class robot:
-    def __init__(self):
+class Robot:
+    # --------
+    # init:
+    # creates robot and initializes location/orientation to 0, 0, 0
+    #
+
+    def __init__(self, length=0.5):
         self.x = 0.0
         self.y = 0.0
         self.orientation = 0.0
@@ -147,7 +154,6 @@ class robot:
         self.y = float(new_y)
         self.orientation = float(new_orientation) % (2.0 * pi)
 
-
     def set_noise(self, new_s_noise, new_d_noise, new_m_noise):
         # makes it possible to change the noise parameters
         # this is often useful in particle filters
@@ -155,21 +161,16 @@ class robot:
         self.distance_noise = float(new_d_noise)
         self.measurement_noise = float(new_m_noise)
 
-    def at_orientation(self, vec, orientation):
-        rotMatrix = np.array([
+    def at_orientation(self, vectors, orientation):
+
+        rot_matrix = np.array([
             [np.cos(orientation), -np.sin(orientation)],
-            [np.sin(orientation),  np.cos(orientation)]
+            [np.sin(orientation), np.cos(orientation)]
         ])
-
-        return np.multiply(rotMatrix, vec)
-
-    def at_orientation(self, (vec1, vec2), orientation):
-        rotMatrix = np.array([
-            [np.cos(orientation), -np.sin(orientation)],
-            [np.sin(orientation),  np.cos(orientation)]
-        ])
-
-        return [np.multiply(rotMatrix, vec1), np.multiply(rotMatrix, vec2)]
+        if type(vectors) is tuple:
+            return [np.multiply(rot_matrix, vectors[0]), np.multiply(rot_matrix, vectors[1])]
+        else:
+            return np.multiply(rot_matrix, input)
 
     # --------
     # check:
@@ -184,7 +185,7 @@ class robot:
 
     def move(self, rotation, forward):
         # make a new copy
-        res = robot()
+        res = Robot()
 
         location = [self.x, self.y]
         orientation = self.orientation
@@ -209,10 +210,6 @@ class robot:
         # res.check_collision()
 
         return res
-
-    def sense(self):
-        return [random.gauss(distances[0], self.measurement_noise),
-                random.gauss(distances[1], self.measurement_noise)]
 
     def measurement_prob(self, measurement):
 
