@@ -1,7 +1,16 @@
+from __future__ import division
+
 import numpy as np
 import random
 from math import pi, exp, sqrt, sin, cos, tan
-from scipy.stats import norm
+from body.sensors import ir_input_to_distance
+
+# normal pdf
+# http://stackoverflow.com/a/8669381/3160671
+def normpdf(x, mu, sigma):
+    u = (x-mu)/abs(sigma)
+    y = (1/(sqrt(2*pi)*abs(sigma)))*exp(-u*u/2)
+    return y
 
 # implemented from http://stackoverflow.com/a/565282
 # line segments p to p+r and q to q+s
@@ -31,31 +40,38 @@ def intersects((p, r), (q, s)):
     else:
         return False
 
+x_max = 106.5 * 3
+y_max = 106.5 * 5
+
 # edge r to r+s, tuples in the (r, s) format, not (r, r+s)
 arena_walls = [
-    ([0.0, 0.0], [0, 106.5 * 5]),
-    ([0.0, 0.0], [106.5 * 3, 0]),
-    ([0, 106.5 * 5], [106.5 * 3, 0]),
-    ([106.5 * 3, 0], [0, 106.5 * 5])
+    ([0.0, 0.0], [0, y_max]),
+    ([0.0, 0.0], [x_max, 0]),
+    ([0, y_max], [x_max, 0]),
+    ([x_max, 0], [0, y_max])
 ]
 
 
 # adapted from http://pastebin.com/Jfyyyhxk
 class particles:
     # init: creates particle set with given initial position
-    def __init__(self, x, y, theta,
-                 steering_noise, distance_noise, measurement_noise, N=100):
-        self.N = N
-        self.steering_noise = steering_noise
-        self.distance_noise = distance_noise
-        self.measurement_noise = measurement_noise
+    def __init__(self, n=1000):
+        self.N = n
 
         self.data = []
-        for i in range(self.N):
+        n_added = 0
+        while n_added < n:
+            #random coordinates and orientation
+            x = random.random() * x_max
+            y = random.random() * y_max
+            orientation = random.random() * 2.0 * pi
+
             r = robot()
-            r.set(x, y, theta)
-            r.set_noise(steering_noise, distance_noise, measurement_noise)
-            self.data.append(r)
+            r.set(x, y, orientation)
+
+            if not r.check_collision():
+                self.data.append(r)
+                n_added += 1
 
     # extract position from a particle set
     def get_position(self):
@@ -74,24 +90,16 @@ class particles:
                             + self.data[0].orientation - pi)
         return [x / self.N, y / self.N, orientation / self.N]
 
-    # --------
-    #
     # motion of the particles
-    #
-
-    def move(self, grid, steer, speed):
+    def move(self, rotation, forward):
         newdata = []
 
         for i in range(self.N):
-            r = self.data[i].move(grid, steer, speed)
+            r = self.data[i].move(rotation, forward)
             newdata.append(r)
         self.data = newdata
 
-    # --------
-    #
     # sensing and resampling
-    #
-
     def sense(self, Z):
         w = []
         for i in range(self.N):
@@ -111,23 +119,17 @@ class particles:
             p3.append(self.data[index])
         self.data = p3
 
-
 class robot:
-    # --------
-    # init:
-    # creates robot and initializes location/orientation to 0, 0, 0
-    #
-
-    def __init__(self, length=0.5):
+    def __init__(self):
         self.x = 0.0
         self.y = 0.0
         self.orientation = 0.0
-        self.length = length
-        self.steering_noise = 0.0
-        self.distance_noise = 0.0
-        self.measurement_noise = 0.0
-        self.num_collisions = 0
-        self.num_steps = 0
+
+        self.rotation_during_forward_std_per_10cm = (1.0/360.0)*2.0*pi
+        self.forward_during_rotation_std = 2
+
+        self.rotation_std_abs = (5.0/360.0)*2.0*pi
+        self.forward_std_frac = 0.1
 
         # edge r to r+s, tuples in the (r, s) format, not (r, r+s)
         self.edges = [
@@ -137,7 +139,8 @@ class robot:
             ([21.0, -13.0], [-32.0, 0.0])
         ]
 
-        self.IR_sensors_locations = [[7.5, 21.0],[-7.5, 21.0]]
+        self.IR_sensors_locations = [([0.0, 21.0], 0.0), ([-7.5, 15.0], pi/2.0)]
+        self.max_beam_range = sqrt(2.0*((5*106.5)**2))
 
     def set(self, new_x, new_y, new_orientation):
         self.x = float(new_x)
@@ -152,18 +155,18 @@ class robot:
         self.distance_noise = float(new_d_noise)
         self.measurement_noise = float(new_m_noise)
 
-    def at_orientation(self, vec):
+    def at_orientation(self, vec, orientation):
         rotMatrix = np.array([
-            [np.cos(self.orientation), -np.sin(self.orientation)],
-            [np.sin(self.orientation),  np.cos(self.orientation)]
+            [np.cos(orientation), -np.sin(orientation)],
+            [np.sin(orientation),  np.cos(orientation)]
         ])
 
         return np.multiply(rotMatrix, vec)
 
-    def at_orientation(self, (vec1, vec2)):
+    def at_orientation(self, (vec1, vec2), orientation):
         rotMatrix = np.array([
-            [np.cos(self.orientation), -np.sin(self.orientation)],
-            [np.sin(self.orientation),  np.cos(self.orientation)]
+            [np.cos(orientation), -np.sin(orientation)],
+            [np.sin(orientation),  np.cos(orientation)]
         ])
 
         return [np.multiply(rotMatrix, vec1), np.multiply(rotMatrix, vec2)]
@@ -176,102 +179,52 @@ class robot:
         for wall in arena_walls:
             for edge in self.edges:
                 if intersects(wall, self.at_orientation(edge)):
-                    self.num_collisions += 1
                     return False
-
         return True
 
-    # --------
-    # move:
-    #    steering = front wheel steering angle, limited by max_steering_angle
-    #    distance = total distance driven, most be non-negative
-
-    def move(self, grid, steering, distance,
-             tolerance=0.001, max_steering_angle=pi / 4.0):
-        if steering > max_steering_angle:
-            steering = max_steering_angle
-        if steering < -max_steering_angle:
-            steering = -max_steering_angle
-        if distance < 0.0:
-            distance = 0.0
-
-
+    def move(self, rotation, forward):
         # make a new copy
         res = robot()
-        res.length = self.length
-        res.steering_noise = self.steering_noise
-        res.distance_noise = self.distance_noise
-        res.measurement_noise = self.measurement_noise
-        res.num_collisions = self.num_collisions
-        res.num_steps = self.num_steps + 1
 
-        # apply noise
-        steering2 = random.gauss(steering, self.steering_noise)
-        distance2 = random.gauss(distance, self.distance_noise)
+        location = [self.x, self.y]
+        orientation = self.orientation
 
+        #TODO drift
 
-        # Execute motion
-        turn = tan(steering2) * distance2 / res.length
+        if rotation is not 0:
+            rotation2 = random.gauss(rotation, self.rotation_std_abs)
+            orientation = (orientation + rotation2) % (2.0 * pi)
 
-        if abs(turn) < tolerance:
+        if forward is not 0:
+            forward3 = random.gauss(forward, self.forward_std_frac * forward)
+            rotation3 = random.gauss(0, self.rotation_std_abs)
+            orientation = (orientation + rotation3) % (2.0 * pi)
+            location = self.at_orientation([0, 1], orientation) * forward3
 
-            # approximate by straight line motion
+        res.x = location[0]
+        res.y = location[1]
+        res.orientation = orientation
 
-            res.x = self.x + (distance2 * cos(self.orientation))
-            res.y = self.y + (distance2 * sin(self.orientation))
-            res.orientation = (self.orientation + turn) % (2.0 * pi)
-
-        else:
-
-            # approximate bicycle model for motion
-
-            radius = distance2 / turn
-            cx = self.x - (sin(self.orientation) * radius)
-            cy = self.y + (cos(self.orientation) * radius)
-            res.orientation = (self.orientation + turn) % (2.0 * pi)
-            res.x = cx + (sin(res.orientation) * radius)
-            res.y = cy - (cos(res.orientation) * radius)
-
-        # check for collision
-        # res.check_collision(grid)
+        # TODO check for collision
+        # res.check_collision()
 
         return res
 
     def sense(self):
-        beam = self.at_orientation([0, sqrt(2*((5*106.5)**2))])
-        location = [self.x, self.y]
-        left = np.add(location, self.IR_sensors_locations[0])
-        right = np.add(location, self.IR_sensors_locations[1])
-
-        distances = list()
-        minimum_distance = np.abs(beam)
-        for sensor in left, right:
-            for wall in arena_walls:
-                intersection = intersects_at(wall, (sensor, beam))
-                if intersection is not None:
-                    distance = np.abs(np.subtract(intersection, location))
-                    if distance < minimum_distance:
-                        minimum_distance = np.abs(np.subtract(intersection, location))
-            distances.append(minimum_distance)
-
         return [random.gauss(distances[0], self.measurement_noise),
                 random.gauss(distances[1], self.measurement_noise)]
 
-
-    # --------
-    # measurement_prob
-    #    computes the probability of a measurement
-    #
-
     def measurement_prob(self, measurement):
-        beam = self.at_orientation([0, sqrt(2*((5*106.5)**2))])
+
+        beam_front = self.at_orientation([0, self.max_beam_range], self.orientation + self.IR_sensors_locations[0][1])
+        beam_right = self.at_orientation([0, self.max_beam_range], self.orientation + self.IR_sensors_locations[1][1])
         location = [self.x, self.y]
-        left = np.add(location, self.IR_sensors_locations[0])
-        right = np.add(location, self.IR_sensors_locations[1])
+        front = np.add(location, self.IR_sensors_locations[0][0])
+        right = np.add(location, self.IR_sensors_locations[1][0])
 
         distances = list()
-        minimum_distance = np.abs(beam)
-        for sensor in left, right:
+        minimum_distance = self.max_beam_range
+        for sensor, beam in (front, beam_front), (right, beam_right):
             for wall in arena_walls:
                 intersection = intersects_at(wall, (sensor, beam))
                 if intersection is not None:
@@ -280,21 +233,40 @@ class robot:
                         minimum_distance = np.abs(np.subtract(intersection, location))
             distances.append(minimum_distance)
 
-        prob = 1
-        for distance in distances:
-            if distance < 10 or distance > 80:
-                prob *= 1.0/np.abs(beam)
-            else:
-                prob *= norm.pdf(error[0], self.measurement_noise)
+        error = 1
+        error *= self.measurement_prob_IR(measurement['IRfront'], distances[0])
+        error *= self.measurement_prob_IR(measurement['IRright'], distances[1])
 
+        return error
 
+    def measurement_prob_IR(self, measurement, predicted):
+        prob_hit_std = 5.0
+        if predicted > 10 and predicted < 80:
+            prob_hit = exp(-(measurement - predicted) ** 2 / (prob_hit_std ** 2) / 2.0) \
+                       / sqrt(2.0 * pi * (prob_hit_std ** 2))
+        else:
+            prob_hit = 0
 
-        error = measurement - [distances[0], distances[1]]
-        error = norm.pdf(error[0], self.measurement_noise)
-        error *= norm.pdf(error[1], self.measurement_noise)
+        prob_unexpected_decay_const = 0.5
+        if measurement < predicted:
+            prob_unexpected = prob_unexpected_decay_const * exp(-prob_unexpected_decay_const * measurement) \
+                              / (1 - exp(-prob_unexpected_decay_const * predicted))
+        else:
+            prob_unexpected = 0
+
+        prob_rand = 1/self.max_beam_range
+
+        if predicted > 80:
+            prob_max = 1
+
+        weights = [0.7, 0.1, 0.1, 0.1]
+        prob = 0
+        prob += weights[0] * prob_hit
+        prob += weights[1] * prob_unexpected
+        prob += weights[2] * prob_rand
+        prob += weights[3] * prob_max
 
         return prob
-
 
     def __repr__(self):
         # return '[x=%.5f y=%.5f orient=%.5f]'  % (self.x, self.y, self.orientation)
