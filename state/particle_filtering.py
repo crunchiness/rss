@@ -68,7 +68,7 @@ class Particles:
             y = random.random() * y_max
             orientation = random.random() * 2.0 * pi
 
-            r = robot()
+            r = Robot()
             r.set(x, y, orientation)
 
             if not r.check_collision():
@@ -172,10 +172,7 @@ class Robot:
         else:
             return np.multiply(rot_matrix, input)
 
-    # --------
-    # check:
-    #    checks of the robot pose collides with an obstacle, or
-    # is too far outside the plane
+    # check: checks of the robot pose collides with an obstacle
     def check_collision(self):
         for wall in arena_walls:
             for edge in self.edges:
