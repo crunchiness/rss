@@ -3,7 +3,9 @@ from __future__ import division
 import numpy as np
 import random
 from math import pi, exp, sqrt, sin, cos, tan
-from body.sensors import ir_input_to_distance
+from body.sensors import Sensors
+
+sensors = Sensors()
 
 # normal pdf
 # http://stackoverflow.com/a/8669381/3160671
@@ -47,12 +49,44 @@ y_max = 106.5 * 5
 
 # edge r to r+s, tuples in the (r, s) format, not (r, r+s)
 arena_walls = [
-    ([0.0, 0.0], [0, y_max]),
-    ([0.0, 0.0], [x_max, 0]),
-    ([0, y_max], [x_max, 0]),
-    ([x_max, 0], [0, y_max])
-]
+    ([0.0, 0.0], [0.0, y_max]),
+    ([0.0, 0.0], [x_max, 0.0]),
+    ([0.0, y_max], [x_max, 0.0]),
+    ([x_max, 0.0], [0.0, y_max]),
 
+    ([143.0, 0.0], [0.0, 93.0]),
+    ([143.0, 93.0], [32.0, 0.0]),
+
+    ([0.0, 132.0], [74.0, 0.0]),
+
+    ([0.0, 294.0], [93.0, 0.0]),
+    ([93.0, 294.0], [0.0, 46.0]),
+    ([93.0, 340.0], [34.0, 0.0]),
+
+    ([x_max, 231.0], [-93.0, 0.0]),
+    ([x_max-93.0, 231.0], [0.0, -46.0]),
+    ([x_max-93.0, 231.0-46.0], [-34.0, 0.0]),
+
+    ([x_max, y_max-132.0], [-74.0, 0.0]),
+
+    ([177.0, y_max], [0.0, -93.0]),
+    ([177.0, y_max-93.0], [-32.0, 0.0]),
+
+    ([x_max-70.0, 91.0], [-23.0, 0.0]),
+    ([x_max-70.0, 91.0], [0.0, 23.0]),
+    ([x_max-93.0, 114.0], [23.0, 0.0]),
+    ([x_max-93.0, 114.0], [0.0, -23.0]),
+
+    ([70.0, y_max-91.0], [23.0, 0.0]),
+    ([70.0, y_max-91.0], [0.0, -23.0]),
+    ([93.0, y_max-114.0], [-23.0, 0.0]),
+    ([93.0, y_max-114.0], [0.0, 23.0]),
+
+    ([x_max-143.0, 234.0], [-38.0, 0.0]),
+    ([x_max-143.0, 234.0], [0.0, 31.0]),
+    ([x_max-143.0-38.0, 234.0+31.0], [38.0, 0.0]),
+    ([x_max-143.0-38.0, 234.0+31.0], [0.0, -31.0])
+]
 
 # adapted from http://pastebin.com/Jfyyyhxk
 class Particles:
@@ -122,11 +156,6 @@ class Particles:
         self.data = p3
 
 class Robot:
-    # --------
-    # init:
-    # creates robot and initializes location/orientation to 0, 0, 0
-    #
-
     def __init__(self, length=0.5):
         self.x = 0.0
         self.y = 0.0
@@ -153,13 +182,6 @@ class Robot:
         self.x = float(new_x)
         self.y = float(new_y)
         self.orientation = float(new_orientation) % (2.0 * pi)
-
-    def set_noise(self, new_s_noise, new_d_noise, new_m_noise):
-        # makes it possible to change the noise parameters
-        # this is often useful in particle filters
-        self.steering_noise = float(new_s_noise)
-        self.distance_noise = float(new_d_noise)
-        self.measurement_noise = float(new_m_noise)
 
     def at_orientation(self, vectors, orientation):
 
@@ -207,6 +229,9 @@ class Robot:
         # res.check_collision()
 
         return res
+
+    def sense(self):
+          return [sensors.get_ir_left(), sensors.get_ir_right()]
 
     def measurement_prob(self, measurement):
 
