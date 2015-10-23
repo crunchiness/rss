@@ -3,6 +3,7 @@ from __future__ import division
 import numpy as np
 import random
 import math
+from math import pi
 from state.map import X_MAX, Y_MAX, ARENA_WALLS
 import utils
 
@@ -114,13 +115,24 @@ class Robot:
             ([21.0, -13.0], [-32.0, 0.0])
         ]
 
-        self.IR_sensors_locations = [([0.0, 21.0], 0.0), ([-7.5, 15.0], math.pi / 2.0)]
+        self.sensors_locations = {
+            'IR_front': { 'location': [0.0, 21.0], 'orientation': 0.0 },
+            'IR_right': { 'location': [-7.5, 15.0], 'orientation': pi / 2.0 },
+            'sonar_front': { 'location': [0.0, 21.0], 'orientation': 0.0 },
+        }
         self.max_beam_range = math.sqrt(2.0 * ((5 * 106.5) ** 2))
 
     def set(self, new_x, new_y, new_orientation):
         self.x = float(new_x)
         self.y = float(new_y)
         self.orientation = float(new_orientation) % (2.0 * math.pi)
+
+    def location(self):
+        """
+        Returns a location vector
+        :return: location vector [x, y]
+        """
+        return np.array([self.x, self.y])
 
     def at_orientation(self, vectors):
         """
@@ -136,7 +148,7 @@ class Robot:
         """
         for wall in ARENA_WALLS:
             for edge in self.edges:
-                if utils.intersects(wall, self.at_orientation(edge)):
+                if utils.intersects(wall, self.location() + self.at_orientation(edge)):
                     return True
         return False
 
@@ -166,13 +178,15 @@ class Robot:
     def measurement_prob(self, measurement):
         """
         :param measurement: dictionary with 'front_ir' and 'right_ir'
-        :return: error ?
+        :return: probability of measurement
         """
-        beam_front = utils.at_orientation([0, self.max_beam_range], self.orientation + self.IR_sensors_locations[0][1])
-        beam_right = utils.at_orientation([0, self.max_beam_range], self.orientation + self.IR_sensors_locations[1][1])
+        beam_front = utils.at_orientation([0, self.max_beam_range],
+                                          self.orientation + self.sensors_locations['IR_front']['orientation'])
+        beam_right = utils.at_orientation([0, self.max_beam_range],
+                                          self.orientation + self.sensors_locations['IR_right']['orientation'])
         location = [self.x, self.y]
-        front = np.add(location, self.IR_sensors_locations[0][0])
-        right = np.add(location, self.IR_sensors_locations[1][0])
+        front = np.add(location, self.sensors_locations['IR_front']['location'])
+        right = np.add(location, self.sensors_locations['IR_right']['location'])
 
         # find distances to the closest walls
         distances = []
@@ -186,11 +200,11 @@ class Robot:
                         minimum_distance = np.abs(np.subtract(intersection, location))
             distances.append(minimum_distance)
 
-        error = 1
-        error *= self.measurement_prob_ir(measurement['front_ir'], distances[0])
-        error *= self.measurement_prob_ir(measurement['right_ir'], distances[1])
+        probability = 1
+        probability *= self.measurement_prob_ir(measurement['front_ir'], distances[0])
+        probability *= self.measurement_prob_ir(measurement['right_ir'], distances[1])
 
-        return error
+        return probability
 
     def measurement_prob_ir(self, measurement, predicted):
         prob_hit_std = 5.0

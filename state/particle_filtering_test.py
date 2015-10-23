@@ -26,7 +26,15 @@ class MyTest(unittest.TestCase):
         for case in cases:
             np.testing.assert_almost_equal(utils.at_orientation(case[0], case[1]), case[2])
 
-    def test_robot(self):
-        rob = Robot()
-        self.assertTrue(rob.is_collision())
+    def test_robot_collision(self):
+        cases = list()
+        cases.append([( 0,  0,  0),   True])
+        cases.append([(25, 25,  0),   False])
+        cases.append([(20, 20,  0),   False])
+        cases.append([(20, 20,  pi), True])
+        cases.append([(20, 20, -pi), True])
 
+        rob = Robot()
+        for case in cases:
+            rob.set(case[0][0], case[0][1], case[0][2])
+            self.assertEqual(rob.is_collision(), case[1])
