@@ -16,9 +16,8 @@ def norm_pdf(x, mu, sigma):
 # implemented from http://stackoverflow.com/a/565282
 # line segments p to p+r and q to q+s
 def intersects_at_helper(p, r, q, s):
-    print p, r, q, s
     if np.cross(r, s) == 0:
-        return None
+        return (None, None)
 
     qp = np.subtract(q, p)
     rs = np.cross(r, s)
@@ -33,7 +32,7 @@ def intersects_at((p, r), (q, s)):
     if 0 <= t <= 1 and 0 <= u <= 1:
         return np.add(p, np.multiply(t, r))
     else:
-        return None
+        return (None, None)
 
 
 def intersects((p, r), (q, s)):
@@ -142,13 +141,12 @@ class Robot:
         self.orientation = float(new_orientation) % (2.0 * pi)
 
     def at_orientation(self, vectors, orientation):
-
         rot_matrix = np.array([
             [np.cos(orientation), -np.sin(orientation)],
             [np.sin(orientation), np.cos(orientation)]
         ])
         if type(vectors) is tuple:
-            return [np.multiply(rot_matrix, vectors[0]), np.multiply(rot_matrix, vectors[1])]
+            return [rot_matrix.dot(vectors[0]), rot_matrix.dot(vectors[1])]
         else:
             return np.multiply(rot_matrix, input)
 
