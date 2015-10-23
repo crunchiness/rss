@@ -19,8 +19,11 @@ class Drawing:
 
     def add_point(self, x, y):
         """Adds a red dot at given coordinates"""
-        self.image[y][x][0] = 0
-        self.image[y][x][3] = 255
+        self.image[int(y)][int(x)][0] = 0
+        self.image[int(y)][int(x)][3] = 255
+
+    def add_big_point(self, x, y):
+        cv2.Circle(self.image, (y, x), radius=2, color=(0, 255, 0), thickness=3)
 
     def save(self):
         """Saves to file and starts new drawing"""

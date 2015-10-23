@@ -9,7 +9,7 @@ import utils
 
 class Particles:
     """adapted from http://pastebin.com/Jfyyyhxk"""
-    def __init__(self, n=1000):
+    def __init__(self, n=1000, drawing=None):
         """
         Creates particle set with given initial position
         :param n: number of particles
@@ -17,6 +17,7 @@ class Particles:
         """
         self.N = n
         self.data = []
+        self.drawing = drawing
 
         n_added = 0
         while n_added < n:
@@ -50,7 +51,17 @@ class Particles:
             # the 0=2pi problem
             orientation += (((self.data[i].orientation - self.data[0].orientation + math.pi) % (2.0 * math.pi)) +
                             self.data[0].orientation - math.pi)
-        return [x / self.N, y / self.N, orientation / self.N]
+        x_approx = x / self.N
+        y_approx = y / self.N
+        o_approx = orientation / self.N
+
+        if self.drawing:
+            for r in self.data:
+                self.drawing.add_point(r.x, r.y)
+            self.drawing.add_big_point(x_approx, y_approx)
+            self.drawing.save()
+
+        return [x_approx, y_approx, o_approx]
 
     def rotate(self, rotation):
         """Rotates all the particles"""
@@ -64,7 +75,6 @@ class Particles:
         """Moves the particles backward"""
         self.forward(-distance)
 
-    # sensing and resampling
     def sense(self, measurement):
         """Sensing and resampling"""
         w = []

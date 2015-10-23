@@ -5,6 +5,7 @@ import datetime
 import cv2  # 3.0.0-dev
 import time
 
+
 class Vision:
     def __init__(self, io):
         self.io = io
