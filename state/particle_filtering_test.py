@@ -15,4 +15,4 @@ class MyTest(unittest.TestCase):
 
     def test_robot(self):
         rob = Robot()
-        self.assertTrue(rob.check_collision())
+        self.assertFalse(rob.check_collision())

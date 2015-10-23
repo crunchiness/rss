@@ -119,7 +119,7 @@ class Robot:
             [np.sin(orientation), np.cos(orientation)]
         ])
         if type(vectors) is tuple:
-            return [np.multiply(rot_matrix, vectors[0]), np.multiply(rot_matrix, vectors[1])]
+            return [rot_matrix.dot(vectors[0]), rot_matrix.dot(vectors[1])]
         else:
             return np.multiply(rot_matrix, input)
 
