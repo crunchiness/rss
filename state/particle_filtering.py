@@ -80,9 +80,11 @@ class Particles:
         """Sensing and resampling"""
         w = []
         for i in range(self.N):
-            w.append(self.data[i].measurement_probability(measurement))
+            predictions = self.data[i].measurement_prediction()
+            weight = self.data[i].measurement_probability(measurement, predictions)
+            w.append(weight)
 
-        # resampling (careful, this is using shallow copy) ??
+        # resampling (careful, this is using shallow copy) ?? [Adam: that's not my comment, it's from the original code]
         p3 = []
         index = int(random.random() * self.N)
         beta = 0.0
@@ -210,9 +212,10 @@ class Robot:
         """
         #TODO establish common labels
 
-        probability = 1
-        probability *= self.measurement_prob_ir(measurements['front_ir'], predictions['IR_front'])
-        probability *= self.measurement_prob_ir(measurements['right_ir'], predictions['IR_right'])
+        weights = [0.5, 0.5]
+        probability = 0
+        probability += weights[0] * self.measurement_prob_ir(measurements['front_ir'], predictions['IR_front'])
+        probability += weights[1] * self.measurement_prob_ir(measurements['right_ir'], predictions['IR_right'])
 
         return probability
 
