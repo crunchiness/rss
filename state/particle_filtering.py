@@ -80,7 +80,7 @@ class Particles:
         """Sensing and resampling"""
         w = []
         for i in range(self.N):
-            w.append(self.data[i].measurement_prob(measurement))
+            w.append(self.data[i].measurement_probability(measurement))
 
         # resampling (careful, this is using shallow copy) ??
         p3 = []
@@ -117,7 +117,7 @@ class Robot:
 
         self.sensors_locations = {
             'IR_front': { 'location': [0.0, 21.0], 'orientation': 0.0 },
-            'IR_right': { 'location': [-7.5, 15.0], 'orientation': pi / 2.0 },
+            'IR_right': { 'location': [7.5, 15.0], 'orientation': pi / 2.0 },
             'sonar_front': { 'location': [0.0, 21.0], 'orientation': 0.0 },
         }
         self.max_beam_range = math.sqrt(2.0 * ((5 * 106.5) ** 2))
@@ -175,34 +175,44 @@ class Robot:
         location = utils.at_orientation([0, 1], orientation) * forward_inferred
         return Robot(x=location[0], y=location[1], orientation=orientation)
 
-    def measurement_prob(self, measurement):
+    def measurement_prediction(self):
         """
-        :param measurement: dictionary with 'front_ir' and 'right_ir'
-        :return: probability of measurement
+        Finds measurement predicitons based on particle location.
+        :return: measurement predicitons
         """
         beam_front = utils.at_orientation([0, self.max_beam_range],
                                           self.orientation + self.sensors_locations['IR_front']['orientation'])
         beam_right = utils.at_orientation([0, self.max_beam_range],
                                           self.orientation + self.sensors_locations['IR_right']['orientation'])
-        location = [self.x, self.y]
-        front = np.add(location, self.sensors_locations['IR_front']['location'])
-        right = np.add(location, self.sensors_locations['IR_right']['location'])
+        front = np.add(self.location(), self.sensors_locations['IR_front']['location'])
+        right = np.add(self.location(), self.sensors_locations['IR_right']['location'])
 
         # find distances to the closest walls
-        distances = []
-        minimum_distance = self.max_beam_range
-        for sensor, beam in (front, beam_front), (right, beam_right):
+        distances = {}
+        for sensor_location, beam, label in (front, beam_front, 'IR_front'), (right, beam_right, 'IR_right'):
+            minimum_distance = self.max_beam_range
             for wall in ARENA_WALLS:
-                intersection = utils.intersects_at(wall, (sensor, beam))
+                intersection = utils.intersects_at(wall, (sensor_location, beam))
                 if intersection is not None:
-                    distance = np.abs(np.subtract(intersection, location))
+                    distance = np.linalg.norm(np.subtract(intersection, sensor_location))
                     if distance < minimum_distance:
-                        minimum_distance = np.abs(np.subtract(intersection, location))
-            distances.append(minimum_distance)
+                        minimum_distance = distance
+            distances[label] = minimum_distance
+
+        return distances
+
+    def measurement_probability(self, measurements, predictions):
+        """
+        Finds the measurements probability based on predictions.
+        :param measurements: dictionary with 'front_ir' and 'right_ir'
+        :param predictions: dictionary with 'IR_front' and 'IR_right'
+        :return: probability of measurements
+        """
+        #TODO establish common labels
 
         probability = 1
-        probability *= self.measurement_prob_ir(measurement['front_ir'], distances[0])
-        probability *= self.measurement_prob_ir(measurement['right_ir'], distances[1])
+        probability *= self.measurement_prob_ir(measurements['front_ir'], predictions['IR_front'])
+        probability *= self.measurement_prob_ir(measurements['right_ir'], predictions['IR_right'])
 
         return probability
 

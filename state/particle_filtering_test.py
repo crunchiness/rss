@@ -9,6 +9,7 @@ class MyTest(unittest.TestCase):
         a = ([-1, -1], [2, 0])
         b = ([2, 2], [-1, -3])
         np.testing.assert_array_equal(utils.intersects_at(a, b), [1, -1])
+        #TODO may need some more here
 
     def test_intersection_false(self):
         a = ([-1, -1], [2, 0])
@@ -34,7 +35,17 @@ class MyTest(unittest.TestCase):
         cases.append([(20, 20,  pi), True])
         cases.append([(20, 20, -pi), True])
 
-        rob = Robot()
+        robot = Robot()
         for case in cases:
-            rob.set(case[0][0], case[0][1], case[0][2])
-            self.assertEqual(rob.is_collision(), case[1])
+            robot.set(case[0][0], case[0][1], case[0][2])
+            self.assertEqual(robot.is_collision(), case[1])
+
+    def test_robot_distance_predictions(self):
+        robot = Robot()
+
+        robot.set(25, 25, 0)
+        expected = { 'IR_front': 132.0-25.0-21.0, 'IR_right': 143.0-25.0-7.5 }
+
+        actual = robot.measurement_prediction()
+        for key, value in expected.iteritems():
+            np.testing.assert_approx_equal(actual[key], value)
