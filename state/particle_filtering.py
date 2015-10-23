@@ -123,16 +123,22 @@ class Robot:
         self.orientation = float(new_orientation) % (2.0 * math.pi)
 
     def at_orientation(self, vectors):
-        # TODO: what is this doing
-        return utils.at_orientation(self, vectors, self.orientation)
+        """
+        Rotates the VECTORS by robot's orientation angle (measured from y axis clockwise)
+        :param vectors:
+        :return: rotated vectors
+        """
+        return utils.at_orientation(vectors, self.orientation)
 
-    def check_collision(self):
-        """Checks of the robot pose collides with an obstacle"""
+    def is_collision(self):
+        """
+        Checks of the robot pose collides with an obstacle
+        """
         for wall in ARENA_WALLS:
             for edge in self.edges:
-                if utils.intersects(wall, self.at_orientation(edge, self.orientation)):
-                    return False
-        return True
+                if utils.intersects(wall, self.at_orientation(edge)):
+                    return True
+        return False
 
     def rotate(self, rotation):
         """
@@ -154,7 +160,7 @@ class Robot:
         # taking into account possible unintended rotation
         rotation_inferred = random.gauss(0, self.rotation_std_abs)
         orientation = (self.orientation + rotation_inferred) % (2.0 * math.pi)
-        location = self.at_orientation([0, 1], orientation) * forward_inferred
+        location = utils.at_orientation([0, 1], orientation) * forward_inferred
         return Robot(x=location[0], y=location[1], orientation=orientation)
 
     def measurement_prob(self, measurement):
@@ -162,8 +168,8 @@ class Robot:
         :param measurement: dictionary with 'front_ir' and 'right_ir'
         :return: error ?
         """
-        beam_front = self.at_orientation([0, self.max_beam_range], self.orientation + self.IR_sensors_locations[0][1])
-        beam_right = self.at_orientation([0, self.max_beam_range], self.orientation + self.IR_sensors_locations[1][1])
+        beam_front = utils.at_orientation([0, self.max_beam_range], self.orientation + self.IR_sensors_locations[0][1])
+        beam_right = utils.at_orientation([0, self.max_beam_range], self.orientation + self.IR_sensors_locations[1][1])
         location = [self.x, self.y]
         front = np.add(location, self.IR_sensors_locations[0][0])
         right = np.add(location, self.IR_sensors_locations[1][0])

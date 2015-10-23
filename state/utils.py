@@ -2,8 +2,11 @@ import numpy as np
 from math import pi, exp, sqrt
 
 
-# http://stackoverflow.com/a/8669381/3160671
 def norm_pdf(x, mu, sigma):
+    """
+    Normal distribution pdf
+    implemented from http://stackoverflow.com/a/8669381/3160671
+    """
     u = (x - mu) / abs(sigma)
     y = (1 / (sqrt(2 * pi) * abs(sigma))) * exp(-u * u / 2)
     return y
@@ -28,14 +31,18 @@ def intersects_at((p, r), (q, s)):
 def intersects(vec1, vec2):
     return intersects_at(vec1, vec2) is not None
 
-# rotates the vector by angle ORIENTATION
 def at_orientation(vectors, orientation):
-        # TODO: what is this doing
-        rot_matrix = np.array([
-            [ np.cos(orientation), np.sin(orientation)],
-            [-np.sin(orientation), np.cos(orientation)]
-        ])
-        if type(vectors) is tuple:
-            return [rot_matrix.dot(vectors[0]), rot_matrix.dot(vectors[1])]
-        else:
-            return rot_matrix.dot(vectors)
+    """
+    Rotates the VECTORS by angle ORIENTATION (measured from y axis clockwise)
+    :param vectors:
+    :param orientation:
+    :return: rotated vectors
+    """
+    rot_matrix = np.array([
+        [ np.cos(orientation), np.sin(orientation)],
+        [-np.sin(orientation), np.cos(orientation)]
+    ])
+    if type(vectors) is tuple:
+        return [rot_matrix.dot(vectors[0]), rot_matrix.dot(vectors[1])]
+    else:
+        return rot_matrix.dot(vectors)
