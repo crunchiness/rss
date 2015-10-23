@@ -60,7 +60,8 @@ class Toddler:
             right_ir_reading = self.sensors.get_ir_right()
             front_ir.add_value(front_ir_reading)
             right_ir.add_value(right_ir_reading)
-            self.motors.move(100, 100)
+            self.motors.go_forward(10)
+            self.particles.forward(10)
             front_avg = front_ir.get_avg()
             right_avg = right_ir.get_avg()
 

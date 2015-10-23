@@ -31,7 +31,7 @@ class Particles:
             r = Robot()
             r.set(x, y, orientation)
 
-            if not r.check_collision():
+            if not r.is_collision():
                 self.data.append(r)
                 n_added += 1
 
