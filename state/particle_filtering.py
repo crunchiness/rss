@@ -83,9 +83,11 @@ class Particles:
         """Sensing and resampling"""
         w = []
         for i in range(self.N):
-            w.append(self.data[i].measurement_probability(measurement))
+            predictions = self.data[i].measurement_prediction()
+            weight = self.data[i].measurement_probability(measurement, predictions)
+            w.append(weight)
 
-        # resampling (careful, this is using shallow copy) ??
+
         p3 = []
         index = int(random.random() * self.N)
         beta = 0.0
@@ -212,18 +214,18 @@ class Robot:
 
         return distances
 
-    def measurement_probability(self, measurements):
+    def measurement_probability(self, measurements, predictions):
         """
         Finds the measurements probability based on predictions.
         :param measurements: dictionary with 'front_ir' and 'right_ir'
         :return: probability of measurements
         """
         # TODO establish common labels
-        predictions = self.measurement_prediction()
-        probability = 1
-        probability *= self.measurement_prob_ir(measurements['front_ir'], predictions['front_ir'])
-        probability *= self.measurement_prob_ir(measurements['right_ir'], predictions['right_ir'])
 
+        weights = [0.5, 0.5]
+        probability = 0
+        probability += weights[0] * self.measurement_prob_ir(measurements['front_ir'], predictions['front_ir'])
+        probability += weights[1] * self.measurement_prob_ir(measurements['right_ir'], predictions['front_ir'])
         return probability
 
     def measurement_prob_ir(self, measurement, predicted):
