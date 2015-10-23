@@ -49,6 +49,7 @@ class SensorRunningAverage:
     def add_value(self, new_value):
         """Dismisses oldest, adds new one at the end
         """
+        new_value = 81 if new_value is None else new_value
         self.values = self.values[1:] + [new_value]
 
     def get_avg(self):

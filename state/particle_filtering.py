@@ -10,7 +10,7 @@ import utils
 
 class Particles:
     """adapted from http://pastebin.com/Jfyyyhxk"""
-    def __init__(self, n=1000, drawing=None):
+    def __init__(self, n=5, drawing=None):
         """
         Creates particle set with given initial position
         :param n: number of particles
@@ -21,7 +21,10 @@ class Particles:
         self.drawing = drawing
 
         n_added = 0
+        i = 0
         while n_added < n:
+            print 'Generated particles: {0}; Attempts: {1}'.format(n_added, i)
+            i += 1
             # TODO: need a way to confine initial positions to one room
             # random coordinates and orientation
             x = random.random() * X_MAX
@@ -66,11 +69,11 @@ class Particles:
 
     def rotate(self, rotation):
         """Rotates all the particles"""
-        self.data = map(lambda r: r.move(rotation), self.data)
+        self.data = map(lambda r: r.rotate(rotation), self.data)
 
     def forward(self, distance):
         """Moves the particles forward"""
-        self.data = map(lambda r: r.move(distance), self.data)
+        self.data = map(lambda r: r.forward(distance), self.data)
 
     def backward(self, distance):
         """Moves the particles backward"""
@@ -116,8 +119,8 @@ class Robot:
         ]
 
         self.sensors_locations = {
-            'IR_front': { 'location': [0.0, 21.0], 'orientation': 0.0 },
-            'IR_right': { 'location': [7.5, 15.0], 'orientation': pi / 2.0 },
+            'front_ir': { 'location': [0.0, 21.0], 'orientation': 0.0 },
+            'right_ir': { 'location': [7.5, 15.0], 'orientation': pi / 2.0 },
             'sonar_front': { 'location': [0.0, 21.0], 'orientation': 0.0 },
         }
         self.max_beam_range = math.sqrt(2.0 * ((5 * 106.5) ** 2))
@@ -144,7 +147,7 @@ class Robot:
 
     def is_collision(self):
         """
-        Checks of the robot pose collides with an obstacle
+        Checks if the robot pose collides with an obstacle
         """
         for wall in ARENA_WALLS:
             for edge in self.edges:
@@ -172,24 +175,32 @@ class Robot:
         # taking into account possible unintended rotation
         rotation_inferred = random.gauss(0, self.rotation_std_abs)
         orientation = (self.orientation + rotation_inferred) % (2.0 * math.pi)
-        location = utils.at_orientation([0, 1], orientation) * forward_inferred
-        return Robot(x=location[0], y=location[1], orientation=orientation)
+        x, y = utils.at_orientation([0, 1], orientation) * forward_inferred
+
+        # Prevent out of arena predictions
+        x = 0 if x < 0 else x
+        x = X_MAX-1 if x >= X_MAX else x
+
+        y = 0 if y < 0 else y
+        y = X_MAX-1 if y >= Y_MAX else y
+
+        return Robot(x=x, y=y, orientation=orientation)
 
     def measurement_prediction(self):
         """
-        Finds measurement predicitons based on particle location.
-        :return: measurement predicitons
+        Finds measurement predictions based on particle location.
+        :return: measurement predictions
         """
         beam_front = utils.at_orientation([0, self.max_beam_range],
-                                          self.orientation + self.sensors_locations['IR_front']['orientation'])
+                                          self.orientation + self.sensors_locations['front_ir']['orientation'])
         beam_right = utils.at_orientation([0, self.max_beam_range],
-                                          self.orientation + self.sensors_locations['IR_right']['orientation'])
-        front = np.add(self.location(), self.sensors_locations['IR_front']['location'])
-        right = np.add(self.location(), self.sensors_locations['IR_right']['location'])
+                                          self.orientation + self.sensors_locations['right_ir']['orientation'])
+        front = np.add(self.location(), self.sensors_locations['front_ir']['location'])
+        right = np.add(self.location(), self.sensors_locations['right_ir']['location'])
 
         # find distances to the closest walls
         distances = {}
-        for sensor_location, beam, label in (front, beam_front, 'IR_front'), (right, beam_right, 'IR_right'):
+        for sensor_location, beam, label in (front, beam_front, 'front_ir'), (right, beam_right, 'right_ir'):
             minimum_distance = self.max_beam_range
             for wall in ARENA_WALLS:
                 intersection = utils.intersects_at(wall, (sensor_location, beam))
@@ -201,18 +212,17 @@ class Robot:
 
         return distances
 
-    def measurement_probability(self, measurements, predictions):
+    def measurement_probability(self, measurements):
         """
         Finds the measurements probability based on predictions.
         :param measurements: dictionary with 'front_ir' and 'right_ir'
-        :param predictions: dictionary with 'IR_front' and 'IR_right'
         :return: probability of measurements
         """
-        #TODO establish common labels
-
+        # TODO establish common labels
+        predictions = self.measurement_prediction()
         probability = 1
-        probability *= self.measurement_prob_ir(measurements['front_ir'], predictions['IR_front'])
-        probability *= self.measurement_prob_ir(measurements['right_ir'], predictions['IR_right'])
+        probability *= self.measurement_prob_ir(measurements['front_ir'], predictions['front_ir'])
+        probability *= self.measurement_prob_ir(measurements['right_ir'], predictions['right_ir'])
 
         return probability
 
