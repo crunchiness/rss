@@ -27,3 +27,15 @@ def intersects_at((p, r), (q, s)):
 
 def intersects(vec1, vec2):
     return intersects_at(vec1, vec2) is not None
+
+# rotates the vector by angle ORIENTATION
+def at_orientation(vectors, orientation):
+        # TODO: what is this doing
+        rot_matrix = np.array([
+            [ np.cos(orientation), np.sin(orientation)],
+            [-np.sin(orientation), np.cos(orientation)]
+        ])
+        if type(vectors) is tuple:
+            return [rot_matrix.dot(vectors[0]), rot_matrix.dot(vectors[1])]
+        else:
+            return rot_matrix.dot(vectors)

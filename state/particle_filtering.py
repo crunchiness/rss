@@ -122,16 +122,9 @@ class Robot:
         self.y = float(new_y)
         self.orientation = float(new_orientation) % (2.0 * math.pi)
 
-    def at_orientation(self, vectors, orientation):
+    def at_orientation(self, vectors):
         # TODO: what is this doing
-        rot_matrix = np.array([
-            [np.cos(orientation), -np.sin(orientation)],
-            [np.sin(orientation), np.cos(orientation)]
-        ])
-        if type(vectors) is tuple:
-            return [rot_matrix.dot(vectors[0]), rot_matrix.dot(vectors[1])]
-        else:
-            return np.multiply(rot_matrix, input)
+        return utils.at_orientation(self, vectors, self.orientation)
 
     def check_collision(self):
         """Checks of the robot pose collides with an obstacle"""
