@@ -66,7 +66,15 @@ class Particles:
             self.drawing.add_big_point(x_approx, y_approx)
             self.drawing.save()
 
-        return [x_approx, y_approx, o_approx]
+        return x_approx, y_approx, o_approx, self.get_position_conf()
+
+    def get_position_conf(self):
+        x_norm = 0
+        y_norm = 0
+        for particle in self.data:
+            x_norm += (particle.x - .5 * X_MAX) / X_MAX
+            y_norm += (particle.y - .5 * Y_MAX) / Y_MAX
+        return .5 * (np.var(x_norm) + np.var(y_norm))
 
     def get_position_by_weight(self):
         """
