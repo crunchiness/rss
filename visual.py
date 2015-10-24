@@ -25,10 +25,12 @@ class Drawing:
         except IndexError:
             raise Exception('Invalid coordinates x={0} y={1}'.format(x, y))
 
-    def add_big_point(self, x, y):
-        cv2.circle(self.image, (int(y), int(x)), radius=2, color=(0, 255, 0), thickness=3)
+    def add_big_point(self, x, y, color=(0, 255, 0)):
+        cv2.circle(self.image, (int(x), int(y)), radius=2, color=color, thickness=3)
 
-    def save(self):
+    def save(self, name=None):
         """Saves to file and starts new drawing"""
-        cv2.imwrite('local-{0}.png'.format(datetime.datetime.now().isoformat()), cv2.flip(self.image, 1))
+        if name is None:
+            name = 'local-{0}.png'.format(datetime.datetime.now().isoformat())
+        cv2.imwrite(name, cv2.flip(self.image, 1))
         self.image = np.copy(self.template)

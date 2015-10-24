@@ -65,3 +65,4 @@ iotools.py
 sandbox.py
 venv/
 resources/
+*.png
