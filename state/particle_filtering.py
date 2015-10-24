@@ -10,7 +10,7 @@ import utils
 
 class Particles:
     """adapted from http://pastebin.com/Jfyyyhxk"""
-    def __init__(self, n=1000, drawing=None):
+    def __init__(self, n=5, drawing=None):
         """
         Creates particle set with given initial position
         :param n: number of particles
@@ -21,7 +21,10 @@ class Particles:
         self.drawing = drawing
 
         n_added = 0
+        i = 0
         while n_added < n:
+            print 'Generated particles: {0}; Attempts: {1}'.format(n_added, i)
+            i += 1
             # TODO: need a way to confine initial positions to one room
             # random coordinates and orientation
             x = random.random() * (X_MAX-2*11)+11
@@ -84,7 +87,7 @@ class Particles:
             weight = self.data[i].measurement_probability(measurement, predictions)
             w.append(weight)
 
-        # resampling (careful, this is using shallow copy) ?? [Adam: that's not my comment, it's from the original code]
+
         p3 = []
         index = int(random.random() * self.N)
         beta = 0.0
@@ -145,7 +148,7 @@ class Robot:
 
     def is_collision(self):
         """
-        Checks of the robot pose collides with an obstacle
+        Checks if the robot pose collides with an obstacle
         """
         for wall in ARENA_WALLS:
             for edge in robot_edges:
@@ -173,15 +176,26 @@ class Robot:
         # taking into account possible unintended rotation
         rotation_inferred = random.gauss(0, rotation_std_abs)
         orientation = (self.orientation + rotation_inferred) % (2.0 * math.pi)
+
         location = utils.at_orientation([0, 1], orientation) * forward_inferred
-        new_location = np.add(location, self.location())
-        return Robot(x=new_location[0], y=new_location[1], orientation=orientation)
+
+        x, y = np.add(location, self.location())
+
+        # Prevent out of arena predictions
+        x = 0 if x < 0 else x
+        x = X_MAX-1 if x >= X_MAX else x
+
+        y = 0 if y < 0 else y
+        y = X_MAX-1 if y >= Y_MAX else y
+
+        return Robot(x=x, y=y, orientation=orientation)
 
     def measurement_prediction(self):
         """
-        Finds measurement predicitons based on particle location.
-        :return: measurement predicitons
+        Finds measurement predictions based on particle location.
+        :return: measurement predictions
         """
+
         beam_front = utils.at_orientation([0, max_beam_range],
                                           self.orientation + sensors_locations['IR_front']['orientation'])
         beam_right = utils.at_orientation([0, max_beam_range],
@@ -206,17 +220,17 @@ class Robot:
     def measurement_probability(self, measurements, predictions):
         """
         Finds the measurements probability based on predictions.
+
         :param measurements: dictionary with 'IR_front' and 'IR_right'
         :param predictions: dictionary with 'IR_front' and 'IR_right'
         :return: probability of measurements
         """
-        #TODO establish common labels
+        # TODO establish common labels
 
         weights = [0.5, 0.5]
         probability = 0
         probability += weights[0] * self.measurement_prob_ir(measurements['IR_front'], predictions['IR_front'])
         probability += weights[1] * self.measurement_prob_ir(measurements['IR_right'], predictions['IR_right'])
-
         return probability
 
     def measurement_prob_ir(self, measurement, predicted):

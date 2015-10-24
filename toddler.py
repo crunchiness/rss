@@ -6,6 +6,7 @@ from body.motors import Motors
 from body.sensors import Sensors, SensorRunningAverage
 from vision.vision import Vision
 from state.particle_filtering import Particles
+from visual import Drawing
 
 
 class Toddler:
@@ -15,7 +16,7 @@ class Toddler:
         self.motors = Motors(io)
         self.sensors = Sensors(io)
         self.vision = Vision(io)
-        self.particles = Particles()
+        self.particles = Particles(drawing=Drawing())
 
     def stop(self):
         """For development only"""
@@ -54,13 +55,12 @@ class Toddler:
 
         front_avg = front_ir.get_avg()
         right_avg = right_ir.get_avg()
-
         while front_avg > 15 and right_avg > 15:
             front_ir_reading = self.sensors.get_ir_front()
             right_ir_reading = self.sensors.get_ir_right()
             front_ir.add_value(front_ir_reading)
             right_ir.add_value(right_ir_reading)
-            self.motors.go_forward(10)
+            # self.motors.go_forward(10)
             self.particles.forward(10)
             front_avg = front_ir.get_avg()
             right_avg = right_ir.get_avg()
