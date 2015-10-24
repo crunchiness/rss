@@ -23,12 +23,12 @@ class Particles:
         n_added = 0
         i = 0
         while n_added < n:
-            print 'Generated particles: {0}; Attempts: {1}'.format(n_added, i)
+            #print 'Generated particles: {0}; Attempts: {1}'.format(n_added, i)
             i += 1
             # TODO: need a way to confine initial positions to one room
             # random coordinates and orientation
-            x = random.random() * (X_MAX-2*11)+11
-            y = random.random() * (Y_MAX-2*11)+11
+            x = random.random() * 150.0 #(X_MAX-2*11)+11
+            y = random.random() * 150.0 #(Y_MAX-2*11)+11
             orientation = random.random() * 2.0 * math.pi
 
             r = Robot()
@@ -38,8 +38,7 @@ class Particles:
             self.data.append(r)
             n_added += 1
 
-    def get_position(self):
-        # TODO: shouldn't this be weighted? only makes sense if stuff converged already
+    def get_position_by_average(self):
         """
         :return: average of particle positions
         """
@@ -67,6 +66,19 @@ class Particles:
 
         return [x_approx, y_approx, o_approx]
 
+    def get_position_by_weight(self):
+        """
+        :return: highest weighted particle position
+        """
+        highest_weight = 0.0
+        highest_weight_particle = None
+        for particle in self.data:
+            if particle.weight > highest_weight:
+                highest_weight = particle.weight
+                highest_weight_particle = particle
+
+        return [highest_weight_particle.x, highest_weight_particle.y, highest_weight_particle.orientation]
+
     def rotate(self, rotation):
         """Rotates all the particles"""
         self.data = map(lambda r: r.rotate(rotation), self.data)
@@ -80,17 +92,23 @@ class Particles:
         self.forward(-distance)
 
     def sense(self, measurement):
-        """Sensing and resampling"""
+        """Sensing"""
         w = []
         for i in range(self.N):
             predictions = self.data[i].measurement_prediction()
-            weight = self.data[i].measurement_probability(measurement, predictions)
-            w.append(weight)
+            self.data[i].weight *= self.data[i].measurement_probability(measurement, predictions)
 
+    def resample(self):
+        """Resampling"""
+        #TODO may need to change
+        # for i in xrange(self.N):
+        #     if self.data[i].is_collision():
+        #         self.data[i].weight *= 0.01
 
         p3 = []
         index = int(random.random() * self.N)
         beta = 0.0
+        w = [rob.weight for rob in self.data]
         mw = max(w)
 
         for i in range(self.N):
@@ -100,7 +118,6 @@ class Particles:
                 index = (index + 1) % self.N
             p3.append(self.data[index])
         self.data = p3
-
 
 rotation_std_abs = (5.0 / 360.0) * 2.0 * math.pi
 forward_std_frac = 0.1
@@ -125,6 +142,7 @@ class Robot:
         self.x = x
         self.y = y
         self.orientation = orientation
+        self.weight = 1
 
     def set(self, new_x, new_y, new_orientation):
         self.x = float(new_x)
@@ -181,12 +199,12 @@ class Robot:
 
         x, y = np.add(location, self.location())
 
-        # Prevent out of arena predictions
-        x = 0 if x < 0 else x
-        x = X_MAX-1 if x >= X_MAX else x
-
-        y = 0 if y < 0 else y
-        y = X_MAX-1 if y >= Y_MAX else y
+        # # Prevent out of arena predictions
+        # x = 0 if x < 0 else x
+        # x = X_MAX-1 if x >= X_MAX else x
+        #
+        # y = 0 if y < 0 else y
+        # y = Y_MAX-1 if y >= Y_MAX else y
 
         return Robot(x=x, y=y, orientation=orientation)
 
@@ -235,11 +253,11 @@ class Robot:
 
     def measurement_prob_ir(self, measurement, predicted):
         prob_hit_std = 5.0
-        if 10 < predicted < 80:
-            prob_hit = math.exp(-(measurement - predicted) ** 2 / (prob_hit_std ** 2) / 2.0) \
+        #if 10 < predicted < 80:
+        prob_hit = math.exp(-(measurement - predicted) ** 2 / (prob_hit_std ** 2) / 2.0) \
                        / math.sqrt(2.0 * math.pi * (prob_hit_std ** 2))
-        else:
-            prob_hit = 0
+        #else:
+        #    prob_hit = 0
 
         prob_unexpected_decay_const = 0.5
         if measurement < predicted:
@@ -250,9 +268,9 @@ class Robot:
 
         prob_rand = 1 / max_beam_range
 
-        prob_max = 0.2 if predicted > 80 else 0
+        prob_max = 0.1 if predicted > 80 else 0
 
-        weights = [0.7, 0.1, 0.1, 0.1]
+        weights = [1, 0.0, 0.0, 0.0]
         prob = 0
         prob += weights[0] * prob_hit
         prob += weights[1] * prob_unexpected

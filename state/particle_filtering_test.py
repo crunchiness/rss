@@ -49,3 +49,13 @@ class MyTest(unittest.TestCase):
         actual = robot.measurement_prediction()
         for key, value in expected.iteritems():
             np.testing.assert_approx_equal(actual[key], value)
+
+    def test_robot_forward_(self):
+        return None
+        # TODO
+        # robot = Robot()
+        #
+        # robot.set(25, 25, pi/2.0)
+        # robot = robot.forward(20)
+        #
+        # print robot.location()
