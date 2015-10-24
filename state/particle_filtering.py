@@ -72,14 +72,7 @@ class Particles:
         """
         :return: highest weighted particle position
         """
-        highest_weight = 0.0
-        highest_weight_particle = None
-        for particle in self.data:
-            if particle.weight > highest_weight:
-                highest_weight = particle.weight
-                highest_weight_particle = particle
-
-        return [highest_weight_particle.x, highest_weight_particle.y, highest_weight_particle.orientation]
+        return self.data[np.argmax(self.weights)]
 
     def rotate_all(self, rotation):
         """Rotates all the particles"""
@@ -119,6 +112,8 @@ class Particles:
             p3[p3index] = self.data[index]
             p3index += 1
         self.data = p3
+
+        self.weights = np.ones(self.weights.shape)
 
     def location(self, i):
         """
@@ -254,3 +249,147 @@ class Particles:
         probabilities = np.array([prob_hit, prob_unexpected, prob_rand, prob_max],
                                  dtype=np.float16)
         return np.dot(weights, probabilities)
+
+class Robot:
+    """Only for keeping track of our real robot"""
+    def __init__(self, x=0., y=0., orientation=0.):
+        self.x = x
+        self.y = y
+        self.orientation = orientation
+
+    def set(self, new_x, new_y, new_orientation):
+        self.x = float(new_x)
+        self.y = float(new_y)
+        self.orientation = float(new_orientation) % (2.0 * math.pi)
+
+    def location(self):
+        """
+        Returns a location vector
+        :return: location vector [x, y]
+        """
+        return np.array([self.x, self.y])
+
+    def at_orientation(self, vectors):
+        """
+        Rotates the VECTORS by robot's orientation angle (measured from y axis clockwise)
+        :param vectors:
+        :return: rotated vectors
+        """
+        return utils.at_orientation(vectors, self.orientation)
+
+    def is_collision(self):
+        """
+        Checks if the robot pose collides with an obstacle
+        """
+        for wall in ARENA_WALLS:
+            for edge in ROBOT_EDGES:
+                if utils.intersects(wall, self.location() + self.at_orientation(edge)):
+                    return True
+        return False
+
+    def rotate(self, rotation):
+        """
+        Infers true pose after rotation (draws from gaussian)
+        :param rotation:
+        :return: new particle
+        """
+        rotation_inferred = random.gauss(rotation, ROTATION_STD_ABS)
+        orientation = (self.orientation + rotation_inferred) % (2.0 * math.pi)
+        return Robot(x=self.x, y=self.y, orientation=orientation)
+
+    def forward(self, distance):
+        """
+        Infers true coordinates and pose after forwards/backwards movement (draws from gaussian)
+        :param distance:
+        :return: new particle
+        """
+        forward_inferred = random.gauss(distance, FORWARD_STD_FRAC * distance)
+        # taking into account possible unintended rotation
+        rotation_inferred = random.gauss(0, ROTATION_STD_ABS)
+        orientation = (self.orientation + rotation_inferred) % (2.0 * math.pi)
+
+        location = utils.at_orientation([0, 1], orientation) * forward_inferred
+
+        x, y = np.add(location, self.location())
+
+        # Prevent out of arena predictions
+        x = 0 if x < 0 else x
+        x = X_MAX-1 if x >= X_MAX else x
+
+        y = 0 if y < 0 else y
+        y = X_MAX-1 if y >= Y_MAX else y
+
+        return Robot(x=x, y=y, orientation=orientation)
+
+    def measurement_prediction(self):
+        """
+        Finds measurement predictions based on particle location.
+        :return: measurement predictions
+        """
+
+        beam_front = utils.at_orientation([0, MAX_BEAM_RANGE],
+                                          self.orientation + SENSORS_LOCATIONS['IR_front']['orientation'])
+        beam_right = utils.at_orientation([0, MAX_BEAM_RANGE],
+                                          self.orientation + SENSORS_LOCATIONS['IR_right']['orientation'])
+        front = np.add(self.location(), SENSORS_LOCATIONS['IR_front']['location'])
+        right = np.add(self.location(), SENSORS_LOCATIONS['IR_right']['location'])
+
+        # find distances to the closest walls
+        distances = {}
+        for sensor_location, beam, label in (front, beam_front, 'IR_front'), (right, beam_right, 'IR_right'):
+            minimum_distance = MAX_BEAM_RANGE
+            for wall in ARENA_WALLS:
+                intersection = utils.intersects_at(wall, (sensor_location, beam))
+                if intersection is not None:
+                    distance = np.linalg.norm(np.subtract(intersection, sensor_location))
+                    if distance < minimum_distance:
+                        minimum_distance = distance
+            distances[label] = minimum_distance
+
+        return distances
+
+    def measurement_probability(self, measurements, predictions):
+        """
+        Finds the measurements probability based on predictions.
+        :param measurements: dictionary with 'IR_front' and 'IR_right'
+        :param predictions: dictionary with 'IR_front' and 'IR_right'
+        :return: probability of measurements
+        """
+        # TODO establish common labels
+
+        weights = [0.5, 0.5]
+        probability = 0
+        probability += weights[0] * self.measurement_prob_ir(measurements['IR_front'], predictions['IR_front'])
+        probability += weights[1] * self.measurement_prob_ir(measurements['IR_right'], predictions['IR_right'])
+        return probability
+
+    def measurement_prob_ir(self, measurement, predicted):
+        prob_hit_std = 5.0
+        if 10 < predicted < 80:
+            prob_hit = math.exp(-(measurement - predicted) ** 2 / (prob_hit_std ** 2) / 2.0) \
+                       / math.sqrt(2.0 * math.pi * (prob_hit_std ** 2))
+        else:
+            prob_hit = 0
+
+        prob_unexpected_decay_const = 0.5
+        if measurement < predicted:
+            prob_unexpected = prob_unexpected_decay_const * math.exp(-prob_unexpected_decay_const * measurement) \
+                              / (1 - math.exp(-prob_unexpected_decay_const * predicted))
+        else:
+            prob_unexpected = 0
+
+        prob_rand = 1 / MAX_BEAM_RANGE
+
+        prob_max = 0.2 if predicted > 80 else 0
+
+        weights = [0.7, 0.1, 0.1, 0.1]
+        prob = 0
+        prob += weights[0] * prob_hit
+        prob += weights[1] * prob_unexpected
+        prob += weights[2] * prob_rand
+        prob += weights[3] * prob_max
+
+        return prob
+
+    def __repr__(self):
+        return '[x=%.5f y=%.5f orient=%.5f]' % (self.x, self.y, self.orientation)
