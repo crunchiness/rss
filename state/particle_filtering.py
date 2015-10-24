@@ -69,38 +69,72 @@ class Particles:
 
         return [x_approx, y_approx, o_approx]
 
-    def rotate(self, rotation):
+    def get_position(self):
+        # TODO: shouldn't this be weighted? only makes sense if stuff converged already
+        """
+        :return: average of particle positions
+        """
+        x = 0.0
+        y = 0.0
+        orientation = 0.0
+
+        for i in range(self.N):
+            x += self.data[i].x
+            y += self.data[i].y
+            # orientation is tricky because it is cyclic. By normalizing
+            # around the first particle we are somewhat more robust to
+            # the 0=2pi problem
+            orientation += (((self.data[i].orientation - self.data[0].orientation + math.pi) % (2.0 * math.pi)) +
+                            self.data[0].orientation - math.pi)
+        x_approx = x / self.N
+        y_approx = y / self.N
+        o_approx = orientation / self.N
+
+        if self.drawing:
+            for r in self.data:
+                self.drawing.add_point(r.x, r.y)
+            self.drawing.add_big_point(x_approx, y_approx)
+            self.drawing.save()
+
+        return [x_approx, y_approx, o_approx]
+
+    def rotate_all(self, rotation):
         """Rotates all the particles"""
-        self.data = map(lambda r: r.rotate(rotation), self.data)
+        for i in xrange(self.N):
+            self.rotate(i, rotation)
 
-    def forward(self, distance):
+    def forward_all(self, distance):
         """Moves the particles forward"""
-        self.data = map(lambda r: r.forward(distance), self.data)
+        for i in xrange(self.N):
+            self.forward(i, distance)
 
-    def backward(self, distance):
+    def backward_all(self, distance):
         """Moves the particles backward"""
-        self.forward(-distance)
+        self.forward_all(-distance)
 
     def sense(self, measurement):
         """Sensing and resampling"""
-        w = []
-        for i in range(self.N):
-            predictions = self.data[i].measurement_prediction()
-            weight = self.data[i].measurement_probability(measurement, predictions)
-            w.append(weight)
+        probabilities = np.zeros(self.N, dtype=np.float16)
+        for i in xrange(self.N):
+            probabilities[i] = self.measurement_probability(measurement, self.measurement_prediction(i))
 
+        self.weights = np.multiply(self.weights, probabilities)
 
-        p3 = []
+    def resample(self):
+        #TODO different resampling
+        p3 = np.zeros((self.N, 3), dtype=np.float16)
         index = int(random.random() * self.N)
         beta = 0.0
-        mw = max(w)
+        mw = max(self.weights)
 
+        p3index = 0
         for i in range(self.N):
             beta += random.random() * 2.0 * mw
-            while beta > w[index]:
-                beta -= w[index]
+            while beta > self.weights[index]:
+                beta -= self.weights[index]
                 index = (index + 1) % self.N
-            p3.append(self.data[index])
+            p3[p3index] = self.data[index]
+            p3index += 1
         self.data = p3
 
     def location(self, i):
@@ -141,7 +175,7 @@ class Particles:
         :param rotation:
         :return: new particle
         """
-        rotation_inferred = random.gauss(rotation, ROTATION_STD_ABS)
+        rotation_inferred = np.random.normal(rotation, ROTATION_STD_ABS)
         new_orientation = (self.orientation(i) + rotation_inferred) % (2.0 * math.pi)
         self.data[i][2] = new_orientation
 
