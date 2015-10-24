@@ -35,17 +35,17 @@ class MyTest(unittest.TestCase):
         cases.append([(20, 20,  pi), True])
         cases.append([(20, 20, -pi), True])
 
-        robot = Robot()
+        particles = Particles(n=1)
         for case in cases:
-            robot.set(case[0][0], case[0][1], case[0][2])
-            self.assertEqual(robot.is_collision(), case[1])
+            particles.data[0] = np.array([case[0][0], case[0][1], case[0][2]])
+            self.assertEqual(particles.is_collision(0), case[1])
 
     def test_robot_distance_predictions(self):
-        robot = Robot()
+        particles = Particles(n=1)
 
-        robot.set(25, 25, 0)
+        particles.data[0] = np.array([25, 25, 0])
         expected = { 'IR_front': 132.0-25.0-21.0, 'IR_right': 143.0-25.0-7.5 }
 
-        actual = robot.measurement_prediction()
+        actual = particles.measurement_prediction(0)
         for key, value in expected.iteritems():
             np.testing.assert_approx_equal(actual[key], value)

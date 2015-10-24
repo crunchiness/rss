@@ -8,6 +8,24 @@ from state.map import X_MAX, Y_MAX, ARENA_WALLS
 import utils
 
 
+ROTATION_STD_ABS = (5.0 / 360.0) * 2.0 * math.pi
+FORWARD_STD_FRAC = 0.1
+
+# edge r to r+s, tuples in the (r, s) format, not (r, r+s)
+ROBOT_EDGES = [
+    ([-11.0, -13.0], [0.0, 26.0]),
+    ([-11.0, 13.0], [32.0, 0.0]),
+    ([21.0, 13.0], [0.0, -26.0]),
+    ([21.0, -13.0], [-32.0, 0.0])
+]
+
+SENSORS_LOCATIONS = {
+    'IR_front': { 'location': [0.0, 21.0], 'orientation': 0.0 },
+    'IR_right': { 'location': [7.5, 15.0], 'orientation': pi / 2.0 },
+    'sonar_front': { 'location': [0.0, 21.0], 'orientation': 0.0 },
+}
+MAX_BEAM_RANGE = math.sqrt(2.0 * ((5 * 106.5) ** 2))
+
 class Particles:
     """adapted from http://pastebin.com/Jfyyyhxk"""
     def __init__(self, n=5, drawing=None):
@@ -17,26 +35,10 @@ class Particles:
         :return:
         """
         self.N = n
-        self.data = []
         self.drawing = drawing
 
-        n_added = 0
-        i = 0
-        while n_added < n:
-            print 'Generated particles: {0}; Attempts: {1}'.format(n_added, i)
-            i += 1
-            # TODO: need a way to confine initial positions to one room
-            # random coordinates and orientation
-            x = random.random() * (X_MAX-2*11)+11
-            y = random.random() * (Y_MAX-2*11)+11
-            orientation = random.random() * 2.0 * math.pi
-
-            r = Robot()
-            r.set(x, y, orientation)
-
-            #if not r.is_collision():
-            self.data.append(r)
-            n_added += 1
+        self.data = np.multiply(np.array([X_MAX, Y_MAX, 2.0 * pi],dtype=np.float16), np.random.rand(self.N, 3).astype(dtype=np.float16))
+        self.weights = np.ones(self.N, dtype=np.float16)
 
     def get_position(self):
         # TODO: shouldn't this be weighted? only makes sense if stuff converged already
@@ -101,112 +103,91 @@ class Particles:
             p3.append(self.data[index])
         self.data = p3
 
-
-rotation_std_abs = (5.0 / 360.0) * 2.0 * math.pi
-forward_std_frac = 0.1
-
-# edge r to r+s, tuples in the (r, s) format, not (r, r+s)
-robot_edges = [
-    ([-11.0, -13.0], [0.0, 26.0]),
-    ([-11.0, 13.0], [32.0, 0.0]),
-    ([21.0, 13.0], [0.0, -26.0]),
-    ([21.0, -13.0], [-32.0, 0.0])
-]
-
-sensors_locations = {
-    'IR_front': { 'location': [0.0, 21.0], 'orientation': 0.0 },
-    'IR_right': { 'location': [7.5, 15.0], 'orientation': pi / 2.0 },
-    'sonar_front': { 'location': [0.0, 21.0], 'orientation': 0.0 },
-}
-max_beam_range = math.sqrt(2.0 * ((5 * 106.5) ** 2))
-
-class Robot:
-    def __init__(self, x=0., y=0., orientation=0.):
-        self.x = x
-        self.y = y
-        self.orientation = orientation
-
-    def set(self, new_x, new_y, new_orientation):
-        self.x = float(new_x)
-        self.y = float(new_y)
-        self.orientation = float(new_orientation) % (2.0 * math.pi)
-
-    def location(self):
+    def location(self, i):
         """
         Returns a location vector
         :return: location vector [x, y]
         """
-        return np.array([self.x, self.y])
+        return np.array([self.data[i][0], self.data[i][1]])
 
-    def at_orientation(self, vectors):
+    def orientation(self, i):
+        """
+        Returns a location vector
+        :return: location vector [x, y]
+        """
+        return self.data[i][2]
+
+    def at_orientation(self, i, vectors):
         """
         Rotates the VECTORS by robot's orientation angle (measured from y axis clockwise)
         :param vectors:
         :return: rotated vectors
         """
-        return utils.at_orientation(vectors, self.orientation)
+        return utils.at_orientation(vectors, self.orientation(i))
 
-    def is_collision(self):
+    def is_collision(self, i):
         """
         Checks if the robot pose collides with an obstacle
         """
         for wall in ARENA_WALLS:
-            for edge in robot_edges:
-                if utils.intersects(wall, self.location() + self.at_orientation(edge)):
+            for edge in ROBOT_EDGES:
+                if utils.intersects(wall, self.location(i) + self.at_orientation(i, edge)):
                     return True
         return False
 
-    def rotate(self, rotation):
+    def rotate(self, i, rotation):
         """
         Infers true pose after rotation (draws from gaussian)
         :param rotation:
         :return: new particle
         """
-        rotation_inferred = random.gauss(rotation, rotation_std_abs)
-        orientation = (self.orientation + rotation_inferred) % (2.0 * math.pi)
-        return Robot(x=self.x, y=self.y, orientation=orientation)
+        rotation_inferred = random.gauss(rotation, ROTATION_STD_ABS)
+        new_orientation = (self.orientation(i) + rotation_inferred) % (2.0 * math.pi)
+        self.data[i][2] = new_orientation
 
-    def forward(self, distance):
+    def forward(self, i, distance):
         """
         Infers true coordinates and pose after forwards/backwards movement (draws from gaussian)
         :param distance:
         :return: new particle
         """
-        forward_inferred = random.gauss(distance, forward_std_frac * distance)
+        forward_inferred = random.gauss(distance, FORWARD_STD_FRAC * distance)
         # taking into account possible unintended rotation
-        rotation_inferred = random.gauss(0, rotation_std_abs)
-        orientation = (self.orientation + rotation_inferred) % (2.0 * math.pi)
+        #TODO drift
+        #rotation_inferred = random.gauss(0, ROTATION_STD_ABS)
+        #orientation = (self.orientation + rotation_inferred) % (2.0 * math.pi)
+        orientation = self.data[i][2]
 
-        location = utils.at_orientation([0, 1], orientation) * forward_inferred
+        location = utils.at_orientation(np.array([0, 1], dtype=np.float16), orientation) * forward_inferred
 
-        x, y = np.add(location, self.location())
+        x, y = np.add(location, self.location(i))
 
         # Prevent out of arena predictions
         x = 0 if x < 0 else x
         x = X_MAX-1 if x >= X_MAX else x
 
         y = 0 if y < 0 else y
-        y = X_MAX-1 if y >= Y_MAX else y
+        y = Y_MAX-1 if y >= Y_MAX else y
 
-        return Robot(x=x, y=y, orientation=orientation)
+        self.data[i] = np.array([x, y, orientation], dtype=np.float16)
 
-    def measurement_prediction(self):
+    def measurement_prediction(self, i):
         """
         Finds measurement predictions based on particle location.
         :return: measurement predictions
         """
 
-        beam_front = utils.at_orientation([0, max_beam_range],
-                                          self.orientation + sensors_locations['IR_front']['orientation'])
-        beam_right = utils.at_orientation([0, max_beam_range],
-                                          self.orientation + sensors_locations['IR_right']['orientation'])
-        front = np.add(self.location(), sensors_locations['IR_front']['location'])
-        right = np.add(self.location(), sensors_locations['IR_right']['location'])
+        beam_front = utils.at_orientation([0, MAX_BEAM_RANGE],
+                                          self.orientation(i) + SENSORS_LOCATIONS['IR_front']['orientation'])
+        beam_right = utils.at_orientation([0, MAX_BEAM_RANGE],
+                                          self.orientation(i) + SENSORS_LOCATIONS['IR_right']['orientation'])
+        front = np.add(self.location(i), SENSORS_LOCATIONS['IR_front']['location'])
+        right = np.add(self.location(i), SENSORS_LOCATIONS['IR_right']['location'])
 
         # find distances to the closest walls
         distances = {}
         for sensor_location, beam, label in (front, beam_front, 'IR_front'), (right, beam_right, 'IR_right'):
-            minimum_distance = max_beam_range
+            minimum_distance = MAX_BEAM_RANGE
             for wall in ARENA_WALLS:
                 intersection = utils.intersects_at(wall, (sensor_location, beam))
                 if intersection is not None:
@@ -227,39 +208,32 @@ class Robot:
         """
         # TODO establish common labels
 
-        weights = [0.5, 0.5]
-        probability = 0
-        probability += weights[0] * self.measurement_prob_ir(measurements['IR_front'], predictions['IR_front'])
-        probability += weights[1] * self.measurement_prob_ir(measurements['IR_right'], predictions['IR_right'])
-        return probability
+        weights = np.array([0.5, 0.5], dtype=np.float16)
+        probabilities = np.array([self.measurement_prob_ir(measurements['IR_front'], predictions['IR_front']),
+                                  self.measurement_prob_ir(measurements['IR_right'], predictions['IR_right'])],
+                                 dtype=np.float16)
+        return np.dot(weights, probabilities)
 
     def measurement_prob_ir(self, measurement, predicted):
-        prob_hit_std = 5.0
-        if 10 < predicted < 80:
-            prob_hit = math.exp(-(measurement - predicted) ** 2 / (prob_hit_std ** 2) / 2.0) \
-                       / math.sqrt(2.0 * math.pi * (prob_hit_std ** 2))
-        else:
-            prob_hit = 0
+        PROB_HIT_STD = 5.0
+        # if 10 < predicted < 80:
+        prob_hit = math.exp(-(measurement - predicted) ** 2 / (PROB_HIT_STD ** 2) / 2.0) \
+                       / math.sqrt(2.0 * math.pi * (PROB_HIT_STD ** 2))
+        # else:
+        #     prob_hit = 0
 
-        prob_unexpected_decay_const = 0.5
+        UNEXPECTED_DECAY_CONST = 0.5
         if measurement < predicted:
-            prob_unexpected = prob_unexpected_decay_const * math.exp(-prob_unexpected_decay_const * measurement) \
-                              / (1 - math.exp(-prob_unexpected_decay_const * predicted))
+            prob_unexpected = UNEXPECTED_DECAY_CONST * math.exp(-UNEXPECTED_DECAY_CONST * measurement) \
+                              / (1 - math.exp(-UNEXPECTED_DECAY_CONST * predicted))
         else:
             prob_unexpected = 0
 
-        prob_rand = 1 / max_beam_range
+        prob_rand = 1 / MAX_BEAM_RANGE
 
         prob_max = 0.2 if predicted > 80 else 0
 
-        weights = [0.7, 0.1, 0.1, 0.1]
-        prob = 0
-        prob += weights[0] * prob_hit
-        prob += weights[1] * prob_unexpected
-        prob += weights[2] * prob_rand
-        prob += weights[3] * prob_max
-
-        return prob
-
-    def __repr__(self):
-        return '[x=%.5f y=%.5f orient=%.5f]' % (self.x, self.y, self.orientation)
+        weights = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float16)
+        probabilities = np.array([prob_hit, prob_unexpected, prob_rand, prob_max],
+                                 dtype=np.float16)
+        return np.dot(weights, probabilities)
