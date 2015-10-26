@@ -3,7 +3,10 @@ from matplotlib import pyplot as plt
 from matplotlib.widgets import Slider
 import matplotlib.gridspec as gridspec
 import cv2
+import os
+from matplotlib.backend_bases import NavigationToolbar2 as navtool
 
+fig = plt.figure(figsize = (8,2))
 
 def hsv_hist(file):
     hsv_map = np.zeros((180, 256, 3), np.uint8)
@@ -23,7 +26,7 @@ def hsv_hist(file):
     h1 = np.clip(h * 0.005 * hist_scale, 0, 1)
     vis_bgr = hsv_map * h1[:, :, np.newaxis] / 255.0
 
-    fig = plt.figure()
+    # fig = plt.figure()
 
     fig.add_subplot(1, 2, 1)
     rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
@@ -55,7 +58,7 @@ def determine_boundaries(file):
     rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
     hist_rgb = cv2.cvtColor(hist_bgr, cv2.COLOR_BGR2RGB)
 
-    fig = plt.figure(figsize = (8,2))
+    # fig = plt.figure(figsize = (8,2))
 
     gs = gridspec.GridSpec(8, 2,
                            width_ratios=[1,1],
@@ -93,6 +96,7 @@ def determine_boundaries(file):
     sus = Slider(axus, 'upper_sat', 0, 255, valinit=255, dragging=False, valfmt="%d")
     slv = Slider(axlv, 'lower_val', 0, 255, valinit=0  , dragging=False, valfmt="%d")
     suv = Slider(axuv, 'upper_val', 0, 255, valinit=255, dragging=False, valfmt="%d")
+    fig.canvas.draw()
 
     def update(val):
         lh = slh.val
@@ -129,6 +133,7 @@ def determine_boundaries(file):
     # mng = plt.get_current_fig_manager()
     # mng.full_screen_toggle()
 
+    # fig.canvas.draw_idle()
     plt.show()
 
 def inrange_red(file):
@@ -149,8 +154,50 @@ def inrange_red(file):
     print np.count_nonzero(frame_threshed)
     print frame_threshed.size
 
+#  calculates what proportion of the image is cloured in red
     print float(np.count_nonzero(frame_threshed))/float(frame_threshed.size)*100.0
 
     img_to_display = cv2.bitwise_and(img_hsv, img_hsv, mask=frame_threshed)
 
     return img_to_display
+
+def inrange_color(file, color_min, color_max):
+    # color_min and color_max are 3d vectors with hsv values
+
+    img_bgr = cv2.imread(file)
+    img_hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
+    frame_threshed = cv2.inRange(img_hsv, np.array(color_min, np.uint8), np.array(color_max, np.uint8))
+    
+    return float(np.count_nonzero(frame_threshed))/float(frame_threshed.size)*100.0
+
+f = [] 
+currpos = 0
+
+def key_event(e):
+    global currpos
+    if(e.key == "right"):
+        plt.clf()
+        currpos = (currpos + 1) % len(f)
+        determine_boundaries(f[currpos])
+
+    elif(e.key ==  "left"):
+        plt.clf()
+        currpos -= 1
+        if (currpos<0):
+            currpos= len(f) - (-currpos%len(f))
+        determine_boundaries(f[currpos])
+    else:
+        return
+
+def show_histogram():
+    path = '../resources/'
+    global fig
+    for pic_file in os.listdir(path):
+        if ('.jpg' in pic_file or '.png' in pic_file):
+            f.append(path + pic_file)
+    
+    fig.canvas.mpl_connect('key_press_event', key_event)
+    determine_boundaries(f[0])
+    # plt.show()
+
+        
