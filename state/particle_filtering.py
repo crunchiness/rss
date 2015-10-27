@@ -20,10 +20,11 @@ ROBOT_EDGES = [
 ]
 
 SENSORS_LOCATIONS = {
-    'IR_front': { 'location': [0.0, 21.0], 'orientation': 0.0 },
-    'IR_right': { 'location': [7.5, 15.0], 'orientation': pi / 2.0 },
-    'sonar_front': { 'location': [0.0, 21.0], 'orientation': 0.0 },
+    'IR_front': {'location': [0.0, 21.0], 'orientation': 0.0},
+    'IR_right': {'location': [7.5, 15.0], 'orientation': pi / 2.0},
+    'sonar_front': {'location': [0.0, 21.0], 'orientation': 0.0},
 }
+
 MAX_BEAM_RANGE = math.sqrt(2.0 * ((5 * 106.5) ** 2))
 
 class Particles:
@@ -71,16 +72,19 @@ class Particles:
     def get_position_conf(self):
         x_norm = 0
         y_norm = 0
-        for particle in self.data:
-            x_norm += (particle.x - .5 * X_MAX) / X_MAX
-            y_norm += (particle.y - .5 * Y_MAX) / Y_MAX
+        for i, particle in enumerate(self.data):
+            x_norm += (particle.x - .5 * X_MAX) * self.weights[i]
+            y_norm += (particle.y - .5 * Y_MAX) * self.weights[i]
+        x_norm /= X_MAX
+        y_norm /= Y_MAX
         return .5 * (np.var(x_norm) + np.var(y_norm))
 
     def get_position_by_weight(self):
         """
         :return: highest weighted particle position
         """
-        return self.data[np.argmax(self.weights)]
+        x_approx, y_approx, o_approx = self.data[np.argmax(self.weights)]
+        return x_approx, y_approx, o_approx, self.get_position_conf()
 
     def rotate_all(self, rotation):
         """Rotates all the particles"""
@@ -97,7 +101,7 @@ class Particles:
         self.forward_all(-distance)
 
     def sense(self, measurement):
-        """Sensing and resampling"""
+        """Sensing"""
         probabilities = np.zeros(self.N, dtype=np.float16)
         for i in xrange(self.N):
             probabilities[i] = self.measurement_probability(measurement, self.measurement_prediction(i))
@@ -105,7 +109,7 @@ class Particles:
         self.weights = np.multiply(self.weights, probabilities)
 
     def resample(self):
-        #TODO different resampling
+        # TODO different resampling
         p3 = np.zeros((self.N, 3), dtype=np.float16)
         index = int(random.random() * self.N)
         beta = 0.0
@@ -173,9 +177,9 @@ class Particles:
         """
         forward_inferred = random.gauss(distance, FORWARD_STD_FRAC * distance)
         # taking into account possible unintended rotation
-        #TODO drift
-        #rotation_inferred = random.gauss(0, ROTATION_STD_ABS)
-        #orientation = (self.orientation + rotation_inferred) % (2.0 * math.pi)
+        # TODO drift
+        # rotation_inferred = random.gauss(0, ROTATION_STD_ABS)
+        # orientation = (self.orientation + rotation_inferred) % (2.0 * math.pi)
         orientation = self.data[i][2]
 
         location = utils.at_orientation(np.array([0, 1], dtype=np.float16), orientation) * forward_inferred
@@ -234,18 +238,19 @@ class Particles:
                                  dtype=np.float16)
         return np.dot(weights, probabilities)
 
-    def measurement_prob_ir(self, measurement, predicted):
-        PROB_HIT_STD = 5.0
+    @staticmethod
+    def measurement_prob_ir(measurement, predicted):
+        prob_hit_std = 5.0
         # if 10 < predicted < 80:
-        prob_hit = math.exp(-(measurement - predicted) ** 2 / (PROB_HIT_STD ** 2) / 2.0) \
-                       / math.sqrt(2.0 * math.pi * (PROB_HIT_STD ** 2))
+        prob_hit = math.exp(-(measurement - predicted) ** 2 / (prob_hit_std ** 2) / 2.0) \
+                       / math.sqrt(2.0 * math.pi * (prob_hit_std ** 2))
         # else:
         #     prob_hit = 0
 
-        UNEXPECTED_DECAY_CONST = 0.5
+        unexpected_decay_const = 0.5
         if measurement < predicted:
-            prob_unexpected = UNEXPECTED_DECAY_CONST * math.exp(-UNEXPECTED_DECAY_CONST * measurement) \
-                              / (1 - math.exp(-UNEXPECTED_DECAY_CONST * predicted))
+            prob_unexpected = unexpected_decay_const * math.exp(-unexpected_decay_const * measurement) \
+                              / (1 - math.exp(-unexpected_decay_const * predicted))
         else:
             prob_unexpected = 0
 
@@ -371,7 +376,8 @@ class Robot:
         probability += weights[1] * self.measurement_prob_ir(measurements['IR_right'], predictions['IR_right'])
         return probability
 
-    def measurement_prob_ir(self, measurement, predicted):
+    @staticmethod
+    def measurement_prob_ir(measurement, predicted):
         prob_hit_std = 5.0
         if 10 < predicted < 80:
             prob_hit = math.exp(-(measurement - predicted) ** 2 / (prob_hit_std ** 2) / 2.0) \

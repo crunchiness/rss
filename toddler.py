@@ -129,7 +129,7 @@ class Toddler:
             'front_ir': front_ir_reading,
             'right_ir': right_ir_reading
         })
-        x, y, o, xy_conf = self.particles.get_position()
+        x, y, o, xy_conf = self.particles.get_position_by_weight()
 
         # Main loop, while unsure of our location
         while xy_conf < LOCALISATION_CONF:
@@ -149,7 +149,7 @@ class Toddler:
                     'front_ir': front_ir_reading,
                     'right_ir': right_ir_reading
                 })
-                x, y, o, xy_conf = self.particles.get_position()
+                x, y, o, xy_conf = self.particles.get_position_by_weight()
                 if xy_conf >= LOCALISATION_CONF:
                     # we are sure enough, go back to high level plan execution
                     break

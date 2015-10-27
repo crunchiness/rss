@@ -66,3 +66,4 @@ sandbox.py
 venv/
 resources/
 *.png
+.DS_Store
