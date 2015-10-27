@@ -38,7 +38,7 @@ class Particles:
         self.N = n
         self.drawing = drawing
 
-        self.data = np.multiply(np.array([X_MAX, Y_MAX, 2.0 * pi],dtype=np.float16), np.random.rand(self.N, 3).astype(dtype=np.float16))
+        self.particles = np.multiply(np.array([X_MAX, Y_MAX, 2.0 * pi],dtype=np.float16), np.random.rand(self.N, 3).astype(dtype=np.float16))
         self.weights = np.ones(self.N, dtype=np.float16)
 
     def get_position_by_average(self):
@@ -50,19 +50,19 @@ class Particles:
         orientation = 0.0
 
         for i in range(self.N):
-            x += self.data[i].x
-            y += self.data[i].y
+            x += self.particles[i].x
+            y += self.particles[i].y
             # orientation is tricky because it is cyclic. By normalizing
             # around the first particle we are somewhat more robust to
             # the 0=2pi problem
-            orientation += (((self.data[i].orientation - self.data[0].orientation + math.pi) % (2.0 * math.pi)) +
-                            self.data[0].orientation - math.pi)
+            orientation += (((self.particles[i].orientation - self.particles[0].orientation + math.pi) % (2.0 * math.pi)) +
+                            self.particles[0].orientation - math.pi)
         x_approx = x / self.N
         y_approx = y / self.N
         o_approx = orientation / self.N
 
         if self.drawing:
-            for r in self.data:
+            for r in self.particles:
                 self.drawing.add_point(r.x, r.y)
             self.drawing.add_big_point(x_approx, y_approx)
             self.drawing.save()
@@ -72,7 +72,7 @@ class Particles:
     def get_position_conf(self):
         x_norm = 0
         y_norm = 0
-        for i, particle in enumerate(self.data):
+        for i, particle in enumerate(self.particles):
             x_norm += (particle.x - .5 * X_MAX) * self.weights[i]
             y_norm += (particle.y - .5 * Y_MAX) * self.weights[i]
         x_norm /= X_MAX
@@ -83,22 +83,22 @@ class Particles:
         """
         :return: highest weighted particle position
         """
-        x_approx, y_approx, o_approx = self.data[np.argmax(self.weights)]
+        x_approx, y_approx, o_approx = self.particles[np.argmax(self.weights)]
         return x_approx, y_approx, o_approx, self.get_position_conf()
 
-    def rotate_all(self, rotation):
+    def rotate(self, rotation):
         """Rotates all the particles"""
         for i in xrange(self.N):
-            self.rotate(i, rotation)
+            self.rotate_particle(i, rotation)
 
-    def forward_all(self, distance):
+    def forward(self, distance):
         """Moves the particles forward"""
         for i in xrange(self.N):
-            self.forward(i, distance)
+            self.forward_particle(i, distance)
 
-    def backward_all(self, distance):
+    def backward(self, distance):
         """Moves the particles backward"""
-        self.forward_all(-distance)
+        self.forward(-distance)
 
     def sense(self, measurement):
         """Sensing"""
@@ -121,9 +121,9 @@ class Particles:
             while beta > self.weights[index]:
                 beta -= self.weights[index]
                 index = (index + 1) % self.N
-            p3[p3index] = self.data[index]
+            p3[p3index] = self.particles[index]
             p3index += 1
-        self.data = p3
+        self.particles = p3
 
         self.weights = np.ones(self.weights.shape)
 
@@ -132,14 +132,14 @@ class Particles:
         Returns a location vector
         :return: location vector [x, y]
         """
-        return np.array([self.data[i][0], self.data[i][1]])
+        return np.array([self.particles[i][0], self.particles[i][1]])
 
     def orientation(self, i):
         """
         Returns a location vector
         :return: location vector [x, y]
         """
-        return self.data[i][2]
+        return self.particles[i][2]
 
     def at_orientation(self, i, vectors):
         """
@@ -159,7 +159,7 @@ class Particles:
                     return True
         return False
 
-    def rotate(self, i, rotation):
+    def rotate_particle(self, i, rotation):
         """
         Infers true pose after rotation (draws from gaussian)
         :param rotation:
@@ -167,9 +167,9 @@ class Particles:
         """
         rotation_inferred = np.random.normal(rotation, ROTATION_STD_ABS)
         new_orientation = (self.orientation(i) + rotation_inferred) % (2.0 * math.pi)
-        self.data[i][2] = new_orientation
+        self.particles[i][2] = new_orientation
 
-    def forward(self, i, distance):
+    def forward_particle(self, i, distance):
         """
         Infers true coordinates and pose after forwards/backwards movement (draws from gaussian)
         :param distance:
@@ -180,7 +180,7 @@ class Particles:
         # TODO drift
         # rotation_inferred = random.gauss(0, ROTATION_STD_ABS)
         # orientation = (self.orientation + rotation_inferred) % (2.0 * math.pi)
-        orientation = self.data[i][2]
+        orientation = self.particles[i][2]
 
         location = utils.at_orientation(np.array([0, 1], dtype=np.float16), orientation) * forward_inferred
 
@@ -193,7 +193,7 @@ class Particles:
         y = 0 if y < 0 else y
         y = Y_MAX-1 if y >= Y_MAX else y
 
-        self.data[i] = np.array([x, y, orientation], dtype=np.float16)
+        self.particles[i] = np.array([x, y, orientation], dtype=np.float16)
 
     def measurement_prediction(self, i):
         """

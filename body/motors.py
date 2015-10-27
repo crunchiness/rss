@@ -1,5 +1,5 @@
 import time
-
+import np
 # distance unit is cm
 
 DIAMETER = 16  # distance between (the middle of) wheels
@@ -50,13 +50,17 @@ class Motors:
         self.halt()
         time.sleep(0.5)
 
-    def turn_by(self, degrees):
+    def turn_by(self, value, radians=False):
         """
-        Robot turns in place by an angle specified in degrees. Positive is clockwise.
-        :param degrees:
+        Robot turns in place by an angle specified in value. Positive is clockwise.
+        :param value:
+        :param radians:
+        :return: if true, value interpreted as radians otherwise degrees (default)
         """
-        direction = -1 if degrees < 0 else 1
+        if radians:
+            value = 180. * value / np.pi
+        direction = -1 if value < 0 else 1
         self.move(direction * 100, -(direction * 100))
-        calc_time = (7.3 * abs(degrees)) / 360
+        calc_time = (7.3 * abs(value)) / 360
         time.sleep(calc_time)
         self.halt()
