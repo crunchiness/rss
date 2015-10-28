@@ -49,7 +49,7 @@ THRESHOLDS = {
     }
 }
 
-MIN_PIXELS = 16*16  # minimum number of pixels needed to confirm presence of object
+MIN_PIXELS = 16 * 16  # minimum number of pixels needed to confirm presence of object
 
 def detect_pieces(img_file, display=True, save=True):
     """
@@ -61,6 +61,20 @@ def detect_pieces(img_file, display=True, save=True):
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
     masks = [(threshold_image(hsv, THRESHOLDS[key]), key) for key in THRESHOLDS.keys()]
     belief = [(interpret_mask(mask), key) for mask, key in masks]
+    belief_dict = {
+        'black': False,
+        'blue': False,
+        'green': False,
+        'red': False,
+        'orange': False,
+        'white': False,
+        'yellow': False
+    }
+
+    for mask, key in masks:
+        key = 'green' if key == 'light_green' or key == 'dark_green' else key
+        belief_dict[key] |= interpret_mask(mask)
+
     if display or save:
         masked_images = [(mask_image(hsv, mask), key) for mask, key in masks]
         img = np.zeros((600, 800, 3), np.uint8)
@@ -84,7 +98,8 @@ def detect_pieces(img_file, display=True, save=True):
             cv2.waitKey(500)
             # cv2.waitKey(0)
             # cv2.destroyAllWindows()
-    return belief
+
+    return belief_dict
 
 def interpret_mask(mask):
     detected_pixels = len(np.nonzero(mask)[0])
@@ -131,12 +146,13 @@ class Vision:
     def __init__(self, io):
         self.io = io
         self.io.cameraSetResolution('low')
-        self.belief = ''
+        self.belief = []
 
     def do_image(self):
         for i in range(0, 5):
             self.io.cameraGrab()
         img = self.io.cameraRead()
         if img.__class__ == np.ndarray:
-            self.belief = detect_pieces(img)
+            self.belief = detect_pieces(img, save=False, display=False)
+            cv2.imwrite('camera-' + datetime.datetime.now().isoformat() + '.png', img)
             time.sleep(0.5)
