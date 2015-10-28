@@ -158,7 +158,7 @@ class Particles:
             np.add(
                 self.locations,
                 vectors
-            )
+            ).astype(np.int16)
 
     def backward(self, distance):
         """Moves the particles backward"""
@@ -168,12 +168,14 @@ class Particles:
         """Sensing"""
         probabilities = np.zeros(self.N, dtype=np.float32)
         for i in xrange(self.N):
-            probabilities[i] = self.measurement_probability(measurement, self.measurement_prediction(i))
             location = self.location(i)
-            if self.distance_to_closest_wall[location[0]][location[1]] < BUFFER_ZONE_FROM_WALLS:
-                probabilities[i] *= 0.01
-            if X_MAX < location[0] < 0 or Y_MAX < location[1] < 0:
+            if X_MAX <= location[0] or location[0] <= 0 or \
+                            Y_MAX <= location[1] or location[1] <= 0:
                 probabilities[i] = 0
+            else:
+                probabilities[i] = self.measurement_probability(measurement, self.measurement_prediction(i))
+                if self.distance_to_closest_wall[location[0]][location[1]] <= BUFFER_ZONE_FROM_WALLS:
+                    probabilities[i] *= 0.01
 
         self.weights = np.multiply(self.weights, probabilities)
 
@@ -195,6 +197,7 @@ class Particles:
             new_orientations[p3index] = self.orientations[index]
             p3index += 1
         self.locations = new_locations
+        print(self.locations)
         self.orientations = new_orientations
 
         self.weights = np.ones(self.weights.shape).astype(np.float32)
