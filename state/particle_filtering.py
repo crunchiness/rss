@@ -41,6 +41,10 @@ Y_BASE_LENGTH = 44
 if os.path.exists('closest_distances.npy'):
     DISTANCE_TO_CLOSEST_WALL = np.load('closest_distances.npy').astype(np.uint8)
 
+RAYCASTING_DISTANCES = None
+if os.path.exists('raycasting_distances_8cm_batches_256angles.npy'):
+    RAYCASTING_DISTANCES = np.load('raycasting_distances_8cm_batches_256angles.npy').astype(np.uint8)
+
 class Particles:
     def __init__(self, n=100, where=None, drawing=None):
         """
@@ -251,6 +255,9 @@ class Particles:
         :return: measurement predictions
         """
 
+        if RAYCASTING_DISTANCES is not None:
+            return Particles.measurement_prediction_from_cache(location, orientation)
+
         beam_front = utils.at_orientation([0, MAX_BEAM_RANGE],
                                           orientation + SENSORS_LOCATIONS['IR_front']['orientation'])
         beam_right = utils.at_orientation([0, MAX_BEAM_RANGE],
@@ -280,6 +287,19 @@ class Particles:
 
         return distances
 
+    @staticmethod
+    def measurement_prediction_from_cache(location, orientation):
+
+        x = int(location[0] / SIZE_OF_BINS)
+        y = int(location[0] / SIZE_OF_BINS)
+        increment = 2.0*pi/NUMBER_OF_ANGLES
+        orientation = int(((orientation + 0.5*increment) % (2.0 * pi)) / increment)
+
+        distances = {}
+        temp = RAYCASTING_DISTANCES[x][y][orientation]
+        distances['IR_front'] = temp[0]
+        distances['IR_right'] = temp[1]
+        return distances
 
     def measurement_prediction(self, i):
         """
