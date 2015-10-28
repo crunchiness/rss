@@ -6,7 +6,7 @@ import math
 from math import pi
 from state.map import X_MAX, Y_MAX, ARENA_WALLS
 import utils
-
+import os.path
 
 ROTATION_STD_ABS = (5.0 / 360.0) * 2.0 * math.pi
 DRIFT_ROTATION_STD_ABS = (1.0 / 360.0) * 2.0 * math.pi
@@ -42,6 +42,8 @@ class Particles:
         """
         self.N = n
         self.drawing = drawing
+        if os.path.exists('closest_distances.npy'):
+            self.distance_to_closest_wall = np.load('closest_distances.npy').astype(np.uint8)
 
         if where == 'bases':
             a = (np.array([X_BASE_OFFSET, Y_BASE_OFFSET])
@@ -51,6 +53,10 @@ class Particles:
                  - np.multiply(np.array([X_BASE_LENGTH, Y_BASE_LENGTH]), np.random.rand(self.N/2, 2)))\
                 .astype(np.int16)
             self.locations = np.concatenate([a, b])
+        elif where == '1base':
+            self.locations = (np.array([X_BASE_OFFSET, Y_BASE_OFFSET])
+                 + np.multiply(np.array([X_BASE_LENGTH, Y_BASE_LENGTH]), np.random.rand(self.N, 2)))\
+                .astype(np.int16)
         else:
             self.locations = np.multiply(np.array([X_MAX, Y_MAX],dtype=np.float32), np.random.rand(self.N, 2)).astype(np.int16)
 
@@ -219,64 +225,29 @@ class Particles:
                     return True
         return False
 
-    def rotate_particle(self, i, rotation):
-        """
-        Infers true pose after rotation (draws from gaussian)
-        :param rotation:
-        :return: new particle
-        """
-        rotation_inferred = np.random.normal(rotation, ROTATION_STD_ABS)
-        new_orientation = (self.orientation(i) + rotation_inferred) % (2.0 * math.pi)
-        self.orientations[i] = new_orientation
-
-    def forward_particle(self, i, distance):
-        """
-        Infers true coordinates and pose after forwards/backwards movement (draws from gaussian)
-        :param distance:
-        :return: new particle
-        """
-        forward_inferred = random.gauss(distance, FORWARD_STD_FRAC * distance)
-        # taking into account possible unintended rotation
-        # TODO drift
-        # rotation_inferred = random.gauss(0, ROTATION_STD_ABS)
-        # orientation = (self.orientation + rotation_inferred) % (2.0 * math.pi)
-        orientation = self.orientation(i)
-
-        location = utils.at_orientation(np.array([0, 1], dtype=np.float32), orientation) * forward_inferred
-
-        x, y = np.add(location, self.location(i))
-
-        # Prevent out of arena predictions
-        x = 0 if x < 0 else x
-        x = X_MAX-1 if x >= X_MAX else x
-
-        y = 0 if y < 0 else y
-        y = Y_MAX-1 if y >= Y_MAX else y
-
-        self.particles[i] = np.array([x, y, orientation], dtype=np.float32)
-
-    def measurement_prediction(self, i):
+    @staticmethod
+    def measurement_prediction_explicit(self, location, orientation):
         """
         Finds measurement predictions based on particle location.
         :return: measurement predictions
         """
 
         beam_front = utils.at_orientation([0, MAX_BEAM_RANGE],
-                                          self.orientation(i) + SENSORS_LOCATIONS['IR_front']['orientation'])
+                                          orientation + SENSORS_LOCATIONS['IR_front']['orientation'])
         beam_right = utils.at_orientation([0, MAX_BEAM_RANGE],
-                                          self.orientation(i) + SENSORS_LOCATIONS['IR_right']['orientation'])
-        front = np.add(self.location(i),
+                                          orientation + SENSORS_LOCATIONS['IR_right']['orientation'])
+        front = np.add(location,
                        utils.at_orientation(SENSORS_LOCATIONS['IR_front']['location'],
-                                            self.orientation(i)))
-        right = np.add(self.location(i),
+                                            orientation))
+        right = np.add(location,
                        utils.at_orientation(SENSORS_LOCATIONS['IR_right']['location'],
-                                            self.orientation(i)))
+                                            orientation))
 
         # print 'Robot: ' + str(self.location(i)[0]) + ' ' + str(self.location(i)[1]) + ' ' + str(self.orientation(i))
         # print 'Sensors: ' + str(front) + str(right)
         # print 'Beams: ' + str(beam_front) + str(beam_right)
 
-        # find distances to the closest walls
+        # find distances along beams to the closest walls
         distances = {}
         for sensor_location, beam, label in (front, beam_front, 'IR_front'), (right, beam_right, 'IR_right'):
             minimum_distance = MAX_BEAM_RANGE
@@ -289,6 +260,15 @@ class Particles:
             distances[label] = minimum_distance
 
         return distances
+
+
+    def measurement_prediction(self, i):
+        """
+        Finds measurement predictions based on particle location.
+        :return: measurement predictions
+        """
+
+        return Particles.measurement_prediction_explicit(self.locations[i], self.orientation(i))
 
     def measurement_probability(self, measurements, predictions):
         """
@@ -331,6 +311,54 @@ class Particles:
                                  dtype=np.float32)
         return np.dot(weights, probabilities)
 
+    @staticmethod
+    def distance_to_wall(wall, p):
+        v = wall[0]
+        w = np.add(v, wall[1])
+        wminusv = wall[1]
+        # Return minimum distance between line segment vw and point p
+        temp = np.subtract(v, w)
+        l2 = np.dot(temp, temp);  # i.e. |w-v|^2 -  avoid a sqrt
+        if l2 == 0.0:
+            return np.linalg.norm(np.subtract(p, v))   # v == w case
+        # Consider the line extending the segment, parameterized as v + t (w - v).
+        # We find projection of point p onto the line.
+        # It falls where t = [(p-v) . (w-v)] / |w-v|^2
+        t = np.divide(np.dot(np.subtract(p, v), np.subtract(w, v)),l2)
+        if t < 0.0:
+            return np.linalg.norm(np.subtract(p, v))       # Beyond the 'v' end of the segment
+        elif t > 1.0:
+            return np.linalg.norm(np.subtract(p, w))  # Beyond the 'w' end of the segment
+        projection = np.add(v,np.multiply(t,wminusv))  #Projection falls on the segment
+        return np.linalg.norm(np.subtract(p, projection))
+
+    @staticmethod
+    # http://stackoverflow.com/a/1501725/3160671
+    def distance_to_closest_wall(x, y):
+        p = np.array([x, y])
+
+         # find distances to the closest walls
+        distances = []
+        for wall in ARENA_WALLS:
+            distances.append(Particles.distance_to_wall(wall, p))
+
+        return min(distances)
+
+    @staticmethod
+    def generate_closest_distances():
+        xm = int(X_MAX)
+        ym = int(Y_MAX)
+        distances = np.zeros((xm, ym)).astype(np.uint8)
+        for x in xrange(xm):
+            print(x)
+            for y in xrange(ym):
+                distances[x][y] = Particles.distance_to_closest_wall(x, y)
+        return distances
+
+    @staticmethod
+    def save_numpy_array(file, array):
+        np.save(file, array, allow_pickle=False, fix_imports=True)
+
 
 class Robot:
     """Only for keeping track of our real robot"""
@@ -351,11 +379,12 @@ class Robot:
         """
         return np.array([self.x, self.y])
 
+    def orientation(self):
+        return self.orientation
+
     def at_orientation(self, vectors):
         """
         Rotates the VECTORS by robot's orientation angle (measured from y axis clockwise)
-        :param vectors:
-        :return: rotated vectors
         """
         return utils.at_orientation(vectors, self.orientation)
 
@@ -372,107 +401,30 @@ class Robot:
     def rotate(self, rotation):
         """
         Infers true pose after rotation (draws from gaussian)
-        :param rotation:
-        :return: new particle
         """
         rotation_inferred = random.gauss(rotation, ROTATION_STD_ABS)
-        orientation = (self.orientation + rotation_inferred) % (2.0 * math.pi)
-        return Robot(x=self.x, y=self.y, orientation=orientation)
+        self.orientation = (self.orientation + rotation_inferred) % (2.0 * math.pi)
 
     def forward(self, distance):
         """
         Infers true coordinates and pose after forwards/backwards movement (draws from gaussian)
-        :param distance:
-        :return: new particle
         """
         forward_inferred = random.gauss(distance, FORWARD_STD_FRAC * distance)
         # taking into account possible unintended rotation
-        rotation_inferred = random.gauss(0, ROTATION_STD_ABS)
+        rotation_inferred = random.gauss(0, DRIFT_ROTATION_STD_ABS)
         orientation = (self.orientation + rotation_inferred) % (2.0 * math.pi)
 
-        location = utils.at_orientation([0, 1], orientation) * forward_inferred
-
-        x, y = np.add(location, self.location())
-
-        # Prevent out of arena predictions
-        x = 0 if x < 0 else x
-        x = X_MAX-1 if x >= X_MAX else x
-
-        y = 0 if y < 0 else y
-        y = X_MAX-1 if y >= Y_MAX else y
-
-        return Robot(x=x, y=y, orientation=orientation)
+        self.location = np.add(self.location,
+                               utils.at_orientation([0, 1], orientation) * forward_inferred)
 
     def measurement_prediction(self):
-        """
-        Finds measurement predictions based on particle location.
-        :return: measurement predictions
-        """
-
-        beam_front = utils.at_orientation([0, MAX_BEAM_RANGE],
-                                          self.orientation + SENSORS_LOCATIONS['IR_front']['orientation'])
-        beam_right = utils.at_orientation([0, MAX_BEAM_RANGE],
-                                          self.orientation + SENSORS_LOCATIONS['IR_right']['orientation'])
-        front = np.add(self.location(), SENSORS_LOCATIONS['IR_front']['location'])
-        right = np.add(self.location(), SENSORS_LOCATIONS['IR_right']['location'])
-
-        #
-        # print front, right
-        # print beam_front, beam_right
-
-
-        # find distances to the closest walls
-        distances = {}
-        for sensor_location, beam, label in (front, beam_front, 'IR_front'), (right, beam_right, 'IR_right'):
-            minimum_distance = MAX_BEAM_RANGE
-            for wall in ARENA_WALLS:
-                intersection = utils.intersects_at(wall, (sensor_location, beam))
-                if intersection is not None:
-                    distance = np.linalg.norm(np.subtract(intersection, sensor_location))
-                    if distance < minimum_distance:
-                        minimum_distance = distance
-            distances[label] = minimum_distance
-
-        return distances
+        return Particles.measurement_prediction_explicit(self.location(), self.orientation())
 
     def measurement_probability(self, measurements, predictions):
-        """
-        Finds the measurements probability based on predictions.
-        :param measurements: dictionary with 'IR_front' and 'IR_right'
-        :param predictions: dictionary with 'IR_front' and 'IR_right'
-        :return: probability of measurements
-        """
-        # TODO establish common labels
+        return Particles.measurement_probability(measurements, predictions)
 
-        weights = np.array([0.5, 0.5])
-        probabilities = np.array(
-            [weights[0] * self.measurement_prob_ir(measurements['IR_front'], predictions['IR_front']),
-             weights[1] * self.measurement_prob_ir(measurements['IR_right'], predictions['IR_right'])])
-        return np.dot(weights, probabilities)
-
-    @staticmethod
     def measurement_prob_ir(measurement, predicted):
-        prob_hit_std = 5.0
-        if 10 < predicted < 80:
-            prob_hit = math.exp(-(measurement - predicted) ** 2 / (prob_hit_std ** 2) / 2.0) \
-                       / math.sqrt(2.0 * math.pi * (prob_hit_std ** 2))
-        else:
-            prob_hit = 0
-
-        prob_unexpected_decay_const = 0.5
-        if measurement < predicted:
-            prob_unexpected = prob_unexpected_decay_const * math.exp(-prob_unexpected_decay_const * measurement) \
-                              / (1 - math.exp(-prob_unexpected_decay_const * predicted))
-        else:
-            prob_unexpected = 0
-
-        prob_rand = 1 / MAX_BEAM_RANGE
-
-        prob_max = 0.2 if predicted > 80 else 0
-
-        weights = np.array([0.7, 0.1, 0.1, 0.1])
-        probabilities = np.array([prob_hit,prob_unexpected,prob_rand,prob_max])
-        return np.dot(weights, probabilities)
+        return Particles.measurement_prob_ir(measurement, predicted)
 
     def __repr__(self):
         return '[x=%.5f y=%.5f orient=%.5f]' % (self.x, self.y, self.orientation)
