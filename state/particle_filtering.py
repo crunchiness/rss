@@ -9,6 +9,7 @@ import utils
 
 
 ROTATION_STD_ABS = (5.0 / 360.0) * 2.0 * math.pi
+DRIFT_ROTATION_STD_ABS = (1.0 / 360.0) * 2.0 * math.pi
 FORWARD_STD_FRAC = 0.1
 
 # edge r to r+s, tuples in the (r, s) format, not (r, r+s)
@@ -27,9 +28,13 @@ SENSORS_LOCATIONS = {
 
 MAX_BEAM_RANGE = math.sqrt(2.0 * ((5 * 106.5) ** 2))
 
+X_BASE_OFFSET = 10
+Y_BASE_OFFSET = 10
+X_BASE_LENGTH = 30
+Y_BASE_LENGTH = 50
+
 class Particles:
-    """adapted from http://pastebin.com/Jfyyyhxk"""
-    def __init__(self, n=5, drawing=None):
+    def __init__(self, n=100, where=None, drawing=None):
         """
         Creates particle set with given initial position
         :param n: number of particles
@@ -38,28 +43,28 @@ class Particles:
         self.N = n
         self.drawing = drawing
 
-        self.particles = np.multiply(np.array([X_MAX, Y_MAX, 2.0 * pi],dtype=np.float16), np.random.rand(self.N, 3).astype(dtype=np.float16))
-        self.weights = np.ones(self.N, dtype=np.float16)
+        if where == 'bases':
+            a = (np.array([X_BASE_OFFSET, Y_BASE_OFFSET])
+                 + np.multiply(np.array([X_BASE_LENGTH, Y_BASE_LENGTH]), np.random.rand(self.N/2, 2)))\
+                .astype(np.int16)
+            b = (np.array([X_MAX - X_BASE_OFFSET, Y_MAX - Y_BASE_OFFSET])
+                 - np.multiply(np.array([X_BASE_LENGTH, Y_BASE_LENGTH]), np.random.rand(self.N/2, 2)))\
+                .astype(np.int16)
+            self.locations = np.concatenate([a, b])
+        else:
+            self.locations = np.multiply(np.array([X_MAX, Y_MAX],dtype=np.float32), np.random.rand(self.N, 2)).astype(np.int16)
+
+        self.orientations = np.multiply(np.array([2.0 * pi]), np.random.rand(self.N)).astype(np.float32)
+        self.weights = np.ones(self.N, dtype=np.float32)
 
     def get_position_by_average(self):
         """
         :return: average of particle positions
         """
-        x = 0.0
-        y = 0.0
-        orientation = 0.0
 
-        for i in range(self.N):
-            x += self.particles[i].x
-            y += self.particles[i].y
-            # orientation is tricky because it is cyclic. By normalizing
-            # around the first particle we are somewhat more robust to
-            # the 0=2pi problem
-            orientation += (((self.particles[i].orientation - self.particles[0].orientation + math.pi) % (2.0 * math.pi)) +
-                            self.particles[0].orientation - math.pi)
-        x_approx = x / self.N
-        y_approx = y / self.N
-        o_approx = orientation / self.N
+        x_approx = np.average(self.locations)
+        y_approx = np.average(self.locations)
+        o_approx = np.average(self.at_orientation())
 
         if self.drawing:
             for r in self.particles:
@@ -79,22 +84,74 @@ class Particles:
         y_norm /= Y_MAX
         return .5 * (np.var(x_norm) + np.var(y_norm))
 
-    def get_position_by_weight(self):
+    def get_position_by_weight(self, position_confidence=True):
         """
         :return: highest weighted particle position
         """
-        x_approx, y_approx, o_approx = self.particles[np.argmax(self.weights)]
-        return x_approx, y_approx, o_approx, self.get_position_conf()
+        i = np.argmax(self.weights)
+        x_approx, y_approx = self.locations[i]
+        o_approx = self.orientations[i]
+        if position_confidence:
+            return x_approx, y_approx, o_approx, self.get_position_conf()
+        else:
+            return x_approx, y_approx, o_approx
 
     def rotate(self, rotation):
         """Rotates all the particles"""
-        for i in xrange(self.N):
-            self.rotate_particle(i, rotation)
+        self.orientations = np.mod(
+            np.add(
+                self.orientations,
+                np.add(
+                    np.multiply(
+                        np.random.rand(self.N),
+                        ROTATION_STD_ABS
+                    ),
+                    -0.5*ROTATION_STD_ABS + rotation
+                )
+            ),
+            2.0 * pi)\
+            .astype(np.float32)
 
     def forward(self, distance):
         """Moves the particles forward"""
-        for i in xrange(self.N):
-            self.forward_particle(i, distance)
+        #forward_inferred = random.gauss(distance, FORWARD_STD_FRAC * distance)
+        # taking into account possible unintended rotation
+        # TODO drift
+        # rotation_inferred = random.gauss(0, ROTATION_STD_ABS)
+        # orientation = (self.orientation + rotation_inferred) % (2.0 * math.pi)
+
+        orientations = np.add(
+            np.multiply(
+                np.random.rand(self.N),
+                DRIFT_ROTATION_STD_ABS
+            ),
+            self.orientations
+        )
+
+        vectors = np.concatenate([np.zeros((self.N,1)), np.ones((self.N,1))], axis=1)
+
+        distances =\
+        np.add(
+            np.multiply(
+                np.random.rand(self.N),
+                FORWARD_STD_FRAC*distance
+            ),
+            (1-0.5*FORWARD_STD_FRAC)*distance
+        )
+
+        for i in xrange(len(vectors)):
+            orientation = orientations[i]
+            rot_matrix = np.array([
+                [ np.cos(orientation), np.sin(orientation)],
+                [-np.sin(orientation), np.cos(orientation)]
+            ])
+            vectors[i] = np.multiply(np.dot(rot_matrix, vectors[i]),distances[i])
+
+        self.locations =\
+            np.add(
+                self.locations,
+                vectors
+            )
 
     def backward(self, distance):
         """Moves the particles backward"""
@@ -102,7 +159,7 @@ class Particles:
 
     def sense(self, measurement):
         """Sensing"""
-        probabilities = np.zeros(self.N, dtype=np.float16)
+        probabilities = np.zeros(self.N, dtype=np.float32)
         for i in xrange(self.N):
             probabilities[i] = self.measurement_probability(measurement, self.measurement_prediction(i))
 
@@ -110,7 +167,8 @@ class Particles:
 
     def resample(self):
         # TODO different resampling
-        p3 = np.zeros((self.N, 3), dtype=np.float16)
+        new_locations = np.zeros((self.N, 2), dtype=np.int16)
+        new_orientations = np.zeros(self.N, dtype=np.float32)
         index = int(random.random() * self.N)
         beta = 0.0
         mw = max(self.weights)
@@ -121,25 +179,27 @@ class Particles:
             while beta > self.weights[index]:
                 beta -= self.weights[index]
                 index = (index + 1) % self.N
-            p3[p3index] = self.particles[index]
+            new_locations[p3index] = self.locations[index]
+            new_orientations[p3index] = self.orientations[index]
             p3index += 1
-        self.particles = p3
+        self.locations = new_locations
+        self.orientations = new_orientations
 
-        self.weights = np.ones(self.weights.shape)
+        self.weights = np.ones(self.weights.shape).astype(np.float32)
 
     def location(self, i):
         """
         Returns a location vector
         :return: location vector [x, y]
         """
-        return np.array([self.particles[i][0], self.particles[i][1]])
+        return self.locations[i]
 
     def orientation(self, i):
         """
         Returns a location vector
         :return: location vector [x, y]
         """
-        return self.particles[i][2]
+        return self.orientations[i]
 
     def at_orientation(self, i, vectors):
         """
@@ -167,7 +227,7 @@ class Particles:
         """
         rotation_inferred = np.random.normal(rotation, ROTATION_STD_ABS)
         new_orientation = (self.orientation(i) + rotation_inferred) % (2.0 * math.pi)
-        self.particles[i][2] = new_orientation
+        self.orientations[i] = new_orientation
 
     def forward_particle(self, i, distance):
         """
@@ -180,9 +240,9 @@ class Particles:
         # TODO drift
         # rotation_inferred = random.gauss(0, ROTATION_STD_ABS)
         # orientation = (self.orientation + rotation_inferred) % (2.0 * math.pi)
-        orientation = self.particles[i][2]
+        orientation = self.orientation(i)
 
-        location = utils.at_orientation(np.array([0, 1], dtype=np.float16), orientation) * forward_inferred
+        location = utils.at_orientation(np.array([0, 1], dtype=np.float32), orientation) * forward_inferred
 
         x, y = np.add(location, self.location(i))
 
@@ -193,7 +253,7 @@ class Particles:
         y = 0 if y < 0 else y
         y = Y_MAX-1 if y >= Y_MAX else y
 
-        self.particles[i] = np.array([x, y, orientation], dtype=np.float16)
+        self.particles[i] = np.array([x, y, orientation], dtype=np.float32)
 
     def measurement_prediction(self, i):
         """
@@ -205,8 +265,16 @@ class Particles:
                                           self.orientation(i) + SENSORS_LOCATIONS['IR_front']['orientation'])
         beam_right = utils.at_orientation([0, MAX_BEAM_RANGE],
                                           self.orientation(i) + SENSORS_LOCATIONS['IR_right']['orientation'])
-        front = np.add(self.location(i), SENSORS_LOCATIONS['IR_front']['location'])
-        right = np.add(self.location(i), SENSORS_LOCATIONS['IR_right']['location'])
+        front = np.add(self.location(i),
+                       utils.at_orientation(SENSORS_LOCATIONS['IR_front']['location'],
+                                            self.orientation(i)))
+        right = np.add(self.location(i),
+                       utils.at_orientation(SENSORS_LOCATIONS['IR_right']['location'],
+                                            self.orientation(i)))
+
+        # print 'Robot: ' + str(self.location(i)[0]) + ' ' + str(self.location(i)[1]) + ' ' + str(self.orientation(i))
+        # print 'Sensors: ' + str(front) + str(right)
+        # print 'Beams: ' + str(beam_front) + str(beam_right)
 
         # find distances to the closest walls
         distances = {}
@@ -232,10 +300,10 @@ class Particles:
         """
         # TODO establish common labels
 
-        weights = np.array([0.5, 0.5], dtype=np.float16)
+        weights = np.array([0.5, 0.5], dtype=np.float32)
         probabilities = np.array([self.measurement_prob_ir(measurements['IR_front'], predictions['IR_front']),
                                   self.measurement_prob_ir(measurements['IR_right'], predictions['IR_right'])],
-                                 dtype=np.float16)
+                                 dtype=np.float32)
         return np.dot(weights, probabilities)
 
     @staticmethod
@@ -258,10 +326,11 @@ class Particles:
 
         prob_max = 0.1 if predicted > 80 else 0
 
-        weights = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float16)
+        weights = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
         probabilities = np.array([prob_hit, prob_unexpected, prob_rand, prob_max],
-                                 dtype=np.float16)
+                                 dtype=np.float32)
         return np.dot(weights, probabilities)
+
 
 class Robot:
     """Only for keeping track of our real robot"""
@@ -347,6 +416,11 @@ class Robot:
         front = np.add(self.location(), SENSORS_LOCATIONS['IR_front']['location'])
         right = np.add(self.location(), SENSORS_LOCATIONS['IR_right']['location'])
 
+        #
+        # print front, right
+        # print beam_front, beam_right
+
+
         # find distances to the closest walls
         distances = {}
         for sensor_location, beam, label in (front, beam_front, 'IR_front'), (right, beam_right, 'IR_right'):
@@ -370,11 +444,11 @@ class Robot:
         """
         # TODO establish common labels
 
-        weights = [0.5, 0.5]
-        probability = 0
-        probability += weights[0] * self.measurement_prob_ir(measurements['IR_front'], predictions['IR_front'])
-        probability += weights[1] * self.measurement_prob_ir(measurements['IR_right'], predictions['IR_right'])
-        return probability
+        weights = np.array([0.5, 0.5])
+        probabilities = np.array(
+            [weights[0] * self.measurement_prob_ir(measurements['IR_front'], predictions['IR_front']),
+             weights[1] * self.measurement_prob_ir(measurements['IR_right'], predictions['IR_right'])])
+        return np.dot(weights, probabilities)
 
     @staticmethod
     def measurement_prob_ir(measurement, predicted):
@@ -396,14 +470,9 @@ class Robot:
 
         prob_max = 0.2 if predicted > 80 else 0
 
-        weights = [0.7, 0.1, 0.1, 0.1]
-        prob = 0
-        prob += weights[0] * prob_hit
-        prob += weights[1] * prob_unexpected
-        prob += weights[2] * prob_rand
-        prob += weights[3] * prob_max
-
-        return prob
+        weights = np.array([0.7, 0.1, 0.1, 0.1])
+        probabilities = np.array([prob_hit,prob_unexpected,prob_rand,prob_max])
+        return np.dot(weights, probabilities)
 
     def __repr__(self):
         return '[x=%.5f y=%.5f orient=%.5f]' % (self.x, self.y, self.orientation)
