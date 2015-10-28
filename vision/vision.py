@@ -16,7 +16,10 @@ class Vision:
         for i in range(0, 5):
             self.io.cameraGrab()
         img = self.io.cameraRead()
+        name = None
         if img.__class__ == np.ndarray:
-            cv2.imwrite('camera-' + datetime.datetime.now().isoformat() + '.png', img)
+            name = 'camera-' + datetime.datetime.now().isoformat() + '.png'
+            cv2.imwrite(name, img)
             self.io.imshow('window', img)
             time.sleep(0.5)
+        return name
