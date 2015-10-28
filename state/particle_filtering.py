@@ -12,6 +12,8 @@ ROTATION_STD_ABS = (5.0 / 360.0) * 2.0 * math.pi
 DRIFT_ROTATION_STD_ABS = (1.0 / 360.0) * 2.0 * math.pi
 FORWARD_STD_FRAC = 0.1
 
+BUFFER_ZONE_FROM_WALLS = 22
+
 # edge r to r+s, tuples in the (r, s) format, not (r, r+s)
 ROBOT_EDGES = [
     ([-11.0, -13.0], [0.0, 26.0]),
@@ -28,10 +30,10 @@ SENSORS_LOCATIONS = {
 
 MAX_BEAM_RANGE = math.sqrt(2.0 * ((5 * 106.5) ** 2))
 
-X_BASE_OFFSET = 10
-Y_BASE_OFFSET = 10
-X_BASE_LENGTH = 30
-Y_BASE_LENGTH = 50
+X_BASE_OFFSET = 22
+Y_BASE_OFFSET = 13
+X_BASE_LENGTH = 38
+Y_BASE_LENGTH = 44
 
 class Particles:
     def __init__(self, n=100, where=None, drawing=None):
@@ -68,24 +70,23 @@ class Particles:
         :return: average of particle positions
         """
 
-        x_approx = np.average(self.locations)
-        y_approx = np.average(self.locations)
-        o_approx = np.average(self.at_orientation())
+        location_approx = np.average(self.locations)
+        o_approx = np.average(self.orientations)
 
         if self.drawing:
-            for r in self.particles:
-                self.drawing.add_point(r.x, r.y)
-            self.drawing.add_big_point(x_approx, y_approx)
+            for r in self.locations:
+                self.drawing.add_point(r[0], r[1])
+            self.drawing.add_big_point(location_approx[0], location_approx[1])
             self.drawing.save()
 
-        return x_approx, y_approx, o_approx, self.get_position_conf()
+        return location_approx[0], location_approx[1], o_approx, self.get_position_conf()
 
     def get_position_conf(self):
         x_norm = 0
         y_norm = 0
-        for i, particle in enumerate(self.particles):
-            x_norm += (particle.x - .5 * X_MAX) * self.weights[i]
-            y_norm += (particle.y - .5 * Y_MAX) * self.weights[i]
+        for i, location in enumerate(self.locations):
+            x_norm += (location[0] - .5 * X_MAX) * self.weights[i]
+            y_norm += (location[1] - .5 * Y_MAX) * self.weights[i]
         x_norm /= X_MAX
         y_norm /= Y_MAX
         return .5 * (np.var(x_norm) + np.var(y_norm))
@@ -168,6 +169,11 @@ class Particles:
         probabilities = np.zeros(self.N, dtype=np.float32)
         for i in xrange(self.N):
             probabilities[i] = self.measurement_probability(measurement, self.measurement_prediction(i))
+            location = self.location(i)
+            if self.distance_to_closest_wall[location[0]][location[1]] < BUFFER_ZONE_FROM_WALLS:
+                probabilities[i] *= 0.01
+            if X_MAX < location[0] < 0 or Y_MAX < location[1] < 0:
+                probabilities[i] = 0
 
         self.weights = np.multiply(self.weights, probabilities)
 
@@ -226,7 +232,7 @@ class Particles:
         return False
 
     @staticmethod
-    def measurement_prediction_explicit(self, location, orientation):
+    def measurement_prediction_explicit(location, orientation):
         """
         Finds measurement predictions based on particle location.
         :return: measurement predictions
@@ -284,7 +290,9 @@ class Particles:
         probabilities = np.array([self.measurement_prob_ir(measurements['IR_front'], predictions['IR_front']),
                                   self.measurement_prob_ir(measurements['IR_right'], predictions['IR_right'])],
                                  dtype=np.float32)
-        return np.dot(weights, probabilities)
+        probability = np.dot(weights, probabilities)
+
+        return probability
 
     @staticmethod
     def measurement_prob_ir(measurement, predicted):
@@ -359,28 +367,35 @@ class Particles:
     def save_numpy_array(file, array):
         np.save(file, array, allow_pickle=False, fix_imports=True)
 
+    @staticmethod
+    def generate_raycasting_distances():
+        size_of_bins = 10
+        number_of_angles = 144
+        xm = int(X_MAX / size_of_bins)
+        ym = int(Y_MAX / size_of_bins)
+
+        distances = np.zeros((xm, ym, number_of_angles)).astype(np.uint8)
+        for x in xrange(xm):
+            print(x)
+            for y in xrange(ym):
+                for angle_no in xrange(number_of_angles):
+                    angle_increment = 2.0 * pi / number_of_angles
+
+
+                distances[x][y] = Particles.distance_to_closest_wall(x, y)
+        return distances
+
 
 class Robot:
     """Only for keeping track of our real robot"""
     def __init__(self, x=0., y=0., orientation=0.):
-        self.x = x
-        self.y = y
+        self.location = np.array([x,y]).astype(np.int16)
         self.orientation = orientation
 
     def set(self, new_x, new_y, new_orientation):
         self.x = float(new_x)
         self.y = float(new_y)
         self.orientation = float(new_orientation) % (2.0 * math.pi)
-
-    def location(self):
-        """
-        Returns a location vector
-        :return: location vector [x, y]
-        """
-        return np.array([self.x, self.y])
-
-    def orientation(self):
-        return self.orientation
 
     def at_orientation(self, vectors):
         """
@@ -394,7 +409,7 @@ class Robot:
         """
         for wall in ARENA_WALLS:
             for edge in ROBOT_EDGES:
-                if utils.intersects(wall, self.location() + self.at_orientation(edge)):
+                if utils.intersects(wall, self.location + self.at_orientation(edge)):
                     return True
         return False
 
@@ -418,7 +433,7 @@ class Robot:
                                utils.at_orientation([0, 1], orientation) * forward_inferred)
 
     def measurement_prediction(self):
-        return Particles.measurement_prediction_explicit(self.location(), self.orientation())
+        return Particles.measurement_prediction_explicit(self.location, self.orientation)
 
     def measurement_probability(self, measurements, predictions):
         return Particles.measurement_probability(measurements, predictions)
@@ -427,4 +442,4 @@ class Robot:
         return Particles.measurement_prob_ir(measurement, predicted)
 
     def __repr__(self):
-        return '[x=%.5f y=%.5f orient=%.5f]' % (self.x, self.y, self.orientation)
+        return '[x=%d y=%d orient=%.5f]' % (self.location[0], self.location[1], self.orientation)
