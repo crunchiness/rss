@@ -174,12 +174,6 @@ for pic_file in os.listdir(path):
             f.append(path + pic_file)
 
 currpos = 0
-green_low = [36,29,120]
-green_high = [90,255,255]
-
-orange_low = [5,160,0]
-orange_high = [14,255,255]
-
 
 def key_event(e):
     global currpos
