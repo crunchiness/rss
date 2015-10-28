@@ -16,7 +16,56 @@ MAX_STEP_SIZE = 5.
 # TODO: incorporate vision!!
 
 
-def wander(sensors, particles, motors, front_ir, right_ir, state):
+class RoomBelief:
+    """Room belief that's based on vision data alone
+    """
+    def __init__(self, history_size=5, decay=1.5):
+        self.history_size = history_size
+        self.decay = decay
+        self.observations = history_size * [None]  # list of sets of pieces seen
+        self.pieces = {
+            'green': {'rooms': ['B', 'C', 'F'], 'prob': 0.9},
+            'orange': {'rooms': ['B'], 'prob': 0.3},
+            'blue': {'rooms': ['A', 'D', 'E'], 'prob': 0.8},
+            'white': {'rooms': ['C'], 'prob': 0.3},
+            'yellow': {'rooms': ['B', 'D'], 'prob': 0.8},
+            'black': {'rooms': ['A', 'D', 'E', 'F'], 'prob': 0.3},  # including bases
+            'red': {'rooms': ['E'], 'prob': 0.8}
+        }
+
+    def update_belief(self, vision_belief):
+        seen = set([])
+        for key in vision_belief.keys():
+            if vision_belief[key]:
+                seen.add(key)
+        self.observations = self.observations[1:] + [seen]
+
+    def get_belief(self):
+        # won't actually add up to one, but it's ok
+        room_probabilities = {
+            'A': 0.,
+            'B': 0.,
+            'C': 0.,
+            'D': 0.,
+            'E': 0.,
+            'F': 0.
+        }
+        for i in xrange(self.history_size):
+            observation = self.observations[self.history_size - 1 - i]
+            for color in observation:
+                rooms = self.pieces[color]['rooms']
+                prob = self.pieces[color]['prob']
+                for room in rooms:
+                    room_probabilities[room] += prob ** (self.decay ** i)
+        max_prob = 0.
+        max_prob_room = 'A'
+        for key in room_probabilities:
+            if room_probabilities[key] > max_prob:
+                max_prob = room_probabilities[key]
+                max_prob_room = key
+        return max_prob_room
+
+def wander(sensors, particles, motors, front_ir, right_ir, state, vision):
     """Loop for when we are unsure of our location at all
     """
     x, y, o, xy_conf = particles.get_position_by_weight()
@@ -31,6 +80,8 @@ def wander(sensors, particles, motors, front_ir, right_ir, state):
             motors.go_forward(10)
             particles.forward(10)
 
+            state['room_belief'].update_belief(vision.belief)
+
             # Update position via particle filter
             front_ir_reading = sensors.get_ir_front()
             right_ir_reading = sensors.get_ir_right()
@@ -44,7 +95,7 @@ def wander(sensors, particles, motors, front_ir, right_ir, state):
 
             # we are sure enough, go back to high level plan execution
             if xy_conf >= LOCALISATION_CONF:
-                state['state'] = 'travelling'
+                state['mode'] = 'travelling'
                 return
 
             # Update running average
@@ -57,7 +108,7 @@ def wander(sensors, particles, motors, front_ir, right_ir, state):
             motors.turn_by(-30)
 
 
-def travel(sensors, particles, motors, state):
+def travel(sensors, particles, motors, state, vision):
     """Loop for when we know what where we are, aka loop for travelling
     """
     # TODO: add obstacle avoidance
@@ -77,6 +128,8 @@ def travel(sensors, particles, motors, state):
                 motors.go_forward(distance)
 
             # keep sensing the world
+            state['room_belief'].update_belief(vision.belief)
+
             front_ir_reading = sensors.get_ir_front()
             right_ir_reading = sensors.get_ir_right()
             particles.sense({
@@ -86,26 +139,28 @@ def travel(sensors, particles, motors, state):
             x, y, o, xy_conf = particles.get_position_by_weight()
             if xy_conf < LOCALISATION_CONF_BREAK:
                 # we got lost, go back to localization
-                state['state'] = 'wandering'
+                state['mode'] = 'wandering'
                 return
 
 
-def wander_and_travel(sensors, particles, motors):
+def wander_and_travel(sensors, particles, motors, vision):
     """Robot logic for milestone 1
        It has two states:
         * 'wandering' - driving around avoiding obstacles (until particle filtering cannot provide a location)
         * 'travelling' - when we are sure of our location, go to the destination room (keep localizing with the filter)
        Robot may fall back to wandering if we get lost.
     """
-    state = {'state': 'wandering'}
-
+    state = {
+        'mode': 'wandering',
+        'room_belief': RoomBelief()
+    }
     front_ir = SensorRunningAverage()
     right_ir = SensorRunningAverage()
 
     while True:
-        if state['state'] == 'wandering':
-            wander(sensors, particles, motors, front_ir, right_ir, state)
-        elif state['state'] == 'travelling':
-            travel(sensors, particles, motors, state)
+        if state['mode'] == 'wandering':
+            wander(sensors, particles, motors, front_ir, right_ir, state, vision)
+        elif state['mode'] == 'travelling':
+            travel(sensors, particles, motors, state, vision)
         else:
-            raise Exception('Unknown state {0}'.format(state['state']))
+            raise Exception('Unknown state {0}'.format(state['mode']))
