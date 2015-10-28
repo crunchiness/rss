@@ -10,6 +10,7 @@ class Vision:
     def __init__(self, io):
         self.io = io
         self.io.cameraSetResolution('low')
+        self.belief = ''
 
     def do_image(self):
         for i in range(0, 5):

@@ -1,5 +1,5 @@
 import time
-import np
+import numpy as np
 # distance unit is cm
 
 DIAMETER = 16  # distance between (the middle of) wheels

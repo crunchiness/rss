@@ -15,6 +15,7 @@ MAX_STEP_SIZE = 5.
 
 # TODO: incorporate vision!!
 
+
 def wander(sensors, particles, motors, front_ir, right_ir, state):
     """Loop for when we are unsure of our location at all
     """
@@ -36,8 +37,8 @@ def wander(sensors, particles, motors, front_ir, right_ir, state):
             front_avg = front_ir.get_avg()
             right_avg = right_ir.get_avg()
             particles.sense({
-                'front_ir': front_ir_reading,
-                'right_ir': right_ir_reading
+                'front_ir': front_ir_reading if front_ir_reading is not None else 0,
+                'right_ir': right_ir_reading if right_ir_reading is not None else 0,
             })
             x, y, o, xy_conf = particles.get_position_by_weight()
 
@@ -54,6 +55,7 @@ def wander(sensors, particles, motors, front_ir, right_ir, state):
             motors.turn_by(30)
         elif right_avg <= 15:
             motors.turn_by(-30)
+
 
 def travel(sensors, particles, motors, state):
     """Loop for when we know what where we are, aka loop for travelling
@@ -86,6 +88,7 @@ def travel(sensors, particles, motors, state):
                 # we got lost, go back to localization
                 state['state'] = 'wandering'
                 return
+
 
 def wander_and_travel(sensors, particles, motors):
     """Robot logic for milestone 1

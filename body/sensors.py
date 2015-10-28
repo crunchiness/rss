@@ -7,7 +7,10 @@ Port mapping
 
 
 def ir_input_to_distance(voltage):
-    value = 4800. / (voltage - 20.)
+    try:
+        value = 4800. / (voltage - 20.)
+    except ZeroDivisionError:
+        return None
     return value if value > 0 else None
 
 

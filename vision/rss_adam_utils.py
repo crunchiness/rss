@@ -84,11 +84,11 @@ def determine_boundaries(img_file):
     axlv = plt.subplot(gs[6, :], axisbg=axcolor)
     axuv = plt.subplot(gs[7, :], axisbg=axcolor)
 
-    slh = Slider(axlh, 'lower_hue', 0, 179, valinit=0  , dragging=False, valfmt="%d")
+    slh = Slider(axlh, 'lower_hue', 0, 179, valinit=0, dragging=False, valfmt="%d")
     suh = Slider(axuh, 'upper_hue', 0, 179, valinit=179, dragging=False, valfmt="%d")
-    sls = Slider(axls, 'lower_sat', 0, 255, valinit=0  , dragging=False, valfmt="%d")
+    sls = Slider(axls, 'lower_sat', 0, 255, valinit=0, dragging=False, valfmt="%d")
     sus = Slider(axus, 'upper_sat', 0, 255, valinit=255, dragging=False, valfmt="%d")
-    slv = Slider(axlv, 'lower_val', 0, 255, valinit=0  , dragging=False, valfmt="%d")
+    slv = Slider(axlv, 'lower_val', 0, 255, valinit=0, dragging=False, valfmt="%d")
     suv = Slider(axuv, 'upper_val', 0, 255, valinit=255, dragging=False, valfmt="%d")
     fig.canvas.draw()
 
@@ -108,8 +108,8 @@ def determine_boundaries(img_file):
 
         h = cv2.calcHist([masked_hsv], [0, 1], None, [180, 256], [0, 180, 0, 256])
         hist_scale = 10
-        h1 = np.clip(h*0.005*hist_scale, 0, 1)
-        masked_hist_bgr = hsv_map*h1[:,:,np.newaxis] / 255.0
+        h1 = np.clip(h * 0.005 * hist_scale, 0, 1)
+        masked_hist_bgr = hsv_map * h1[:, :, np.newaxis] / 255.0
         masked_hist_rgb = cv2.cvtColor(masked_hist_bgr, cv2.COLOR_BGR2RGB)
 
         masked_image_axes.set_data(masked_rgb)
@@ -125,6 +125,7 @@ def determine_boundaries(img_file):
     suv.on_changed(update)
 
     plt.show()
+
 
 def inrange_red(img_file):
     RED_MIN_1 = np.array([0, 100, 0], np.uint8)
@@ -145,11 +146,12 @@ def inrange_red(img_file):
     print frame_threshed.size
 
     #  calculates what proportion of the image is coloured in red
-    print float(np.count_nonzero(frame_threshed))/float(frame_threshed.size)*100.0
+    print float(np.count_nonzero(frame_threshed)) / float(frame_threshed.size) * 100.0
 
     img_to_display = cv2.bitwise_and(img_hsv, img_hsv, mask=frame_threshed)
 
     return img_to_display
+
 
 def inrange_color(img_file, color_min, color_max):
     # color_min and color_max are 3d vectors with hsv values
@@ -157,10 +159,11 @@ def inrange_color(img_file, color_min, color_max):
     img_bgr = cv2.imread(img_file)
     img_hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
     frame_threshed = cv2.inRange(img_hsv, np.array(color_min, np.uint8), np.array(color_max, np.uint8))
-    
-    return float(np.count_nonzero(frame_threshed))/float(frame_threshed.size)*100.0
 
-f = [] 
+    return float(np.count_nonzero(frame_threshed)) / float(frame_threshed.size) * 100.0
+
+
+f = []
 currpos = 0
 
 
