@@ -5,10 +5,11 @@ import matplotlib.gridspec as gridspec
 import cv2
 import os
 
-fig = plt.figure(figsize=(8, 2))
-
+fig = plt.figure()
 
 def hsv_hist(img_file):
+    global fig
+    fig.canvas.draw()
     hsv_map = np.zeros((180, 256, 3), np.uint8)
     h, s = np.indices(hsv_map.shape[:2])
     hsv_map[:, :, 0] = h
@@ -40,6 +41,9 @@ def hsv_hist(img_file):
 
 
 def determine_boundaries(img_file):
+    global fig
+    plt.close("all")
+    fig=plt.figure()
     hsv_map = np.zeros((180, 256, 3), np.uint8)
     h, s = np.indices(hsv_map.shape[:2])
     hsv_map[:, :, 0] = h
@@ -123,7 +127,7 @@ def determine_boundaries(img_file):
     sus.on_changed(update)
     slv.on_changed(update)
     suv.on_changed(update)
-
+    fig.canvas.mpl_connect('key_press_event', key_event)
     plt.show()
 
 
@@ -164,8 +168,12 @@ def inrange_color(img_file, color_min, color_max):
 
 
 f = []
-currpos = 0
+path = '../resources/'
+for pic_file in os.listdir(path):
+        if '.jpg' in pic_file or '.png' in pic_file:
+            f.append(path + pic_file)
 
+currpos = 0
 
 def key_event(e):
     global currpos
@@ -183,13 +191,8 @@ def key_event(e):
     else:
         return
 
-
 def show_histogram():
-    path = '../resources/'
-    global fig
-    for pic_file in os.listdir(path):
-        if '.jpg' in pic_file or '.png' in pic_file:
-            f.append(path + pic_file)
-
-    fig.canvas.mpl_connect('key_press_event', key_event)
     determine_boundaries(f[0])
+
+
+    
