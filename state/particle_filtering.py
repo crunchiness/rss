@@ -14,6 +14,9 @@ FORWARD_STD_FRAC = 0.1
 
 BUFFER_ZONE_FROM_WALLS = 22
 
+SIZE_OF_BINS = 8
+NUMBER_OF_ANGLES = 256
+
 # edge r to r+s, tuples in the (r, s) format, not (r, r+s)
 ROBOT_EDGES = [
     ([-11.0, -13.0], [0.0, 26.0]),
@@ -35,6 +38,9 @@ Y_BASE_OFFSET = 13
 X_BASE_LENGTH = 38
 Y_BASE_LENGTH = 44
 
+if os.path.exists('closest_distances.npy'):
+    DISTANCE_TO_CLOSEST_WALL = np.load('closest_distances.npy').astype(np.uint8)
+
 class Particles:
     def __init__(self, n=100, where=None, drawing=None):
         """
@@ -44,8 +50,6 @@ class Particles:
         """
         self.N = n
         self.drawing = drawing
-        if os.path.exists('closest_distances.npy'):
-            self.distance_to_closest_wall = np.load('closest_distances.npy').astype(np.uint8)
 
         if where == 'bases':
             a = (np.array([X_BASE_OFFSET, Y_BASE_OFFSET])
@@ -176,6 +180,12 @@ class Particles:
                 probabilities[i] = 0
 
         self.weights = np.multiply(self.weights, probabilities)
+
+    @staticmethod
+    def is_forbidden(location):
+        if DISTANCE_TO_CLOSEST_WALL[location[0]][location[1]] < BUFFER_ZONE_FROM_WALLS:
+            return True
+        return False
 
     def resample(self):
         # TODO different resampling
@@ -365,24 +375,26 @@ class Particles:
 
     @staticmethod
     def save_numpy_array(file, array):
-        np.save(file, array, allow_pickle=False, fix_imports=True)
+        np.save(file, array)
 
     @staticmethod
-    def generate_raycasting_distances():
-        size_of_bins = 10
-        number_of_angles = 144
-        xm = int(X_MAX / size_of_bins)
-        ym = int(Y_MAX / size_of_bins)
+    def generate_raycasting_distances(xmin, xmax):
+        xm = int(X_MAX / SIZE_OF_BINS)
+        ym = int(Y_MAX / SIZE_OF_BINS)
 
-        distances = np.zeros((xm, ym, number_of_angles)).astype(np.uint8)
-        for x in xrange(xm):
+        angle_increment = 2.0 * pi / float(NUMBER_OF_ANGLES)
+
+        distances = np.zeros((xm, ym, NUMBER_OF_ANGLES, 2)).astype(np.uint8)
+        for x in range(xmin, xmax):
             print(x)
             for y in xrange(ym):
-                for angle_no in xrange(number_of_angles):
-                    angle_increment = 2.0 * pi / number_of_angles
+                #we need offset to calculate the center of the tile
+                location = np.array([int(SIZE_OF_BINS * (x + 0.5)), int(SIZE_OF_BINS * (y + 0.5))]).astype(np.int16)
+                for angle_number in xrange(NUMBER_OF_ANGLES):
+                    temp = Particles.measurement_prediction_explicit(location, angle_number * angle_increment)
+                    distances[x][y][angle_number][0] = temp['IR_front']
+                    distances[x][y][angle_number][1] = temp['IR_right']
 
-
-                distances[x][y] = Particles.distance_to_closest_wall(x, y)
         return distances
 
 
