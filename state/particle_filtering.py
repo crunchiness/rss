@@ -182,7 +182,7 @@ class Particles:
                 probabilities[i] = 0
             else:
                 probabilities[i] = self.measurement_probability(measurement, self.measurement_prediction(i))
-                if self.distance_to_closest_wall[location[0]][location[1]] <= BUFFER_ZONE_FROM_WALLS:
+                if DISTANCE_TO_CLOSEST_WALL[location[0]][location[1]] <= BUFFER_ZONE_FROM_WALLS:
                     probabilities[i] *= 0.01
 
         self.weights = np.multiply(self.weights, probabilities)
@@ -420,6 +420,15 @@ class Particles:
 
         return distances
 
+    @staticmethod
+    def model_beam(distance, measurements):
+        std = 5
+        if distance <= 10:
+            return np.random.uniform(0.0, 40.0, measurements)
+        if distance >= 90:
+            return np.multiply(np.ones(measurements), 90)
+        else:
+            return (np.multiply(np.random.rand(measurements), std), distance)
 
 class Robot:
     """Only for keeping track of our real robot"""
