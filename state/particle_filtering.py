@@ -46,7 +46,7 @@ if os.path.exists('raycasting_distances_8cm_batches_256angles.npy'):
     RAYCASTING_DISTANCES = np.load('raycasting_distances_8cm_batches_256angles.npy').astype(np.uint8)
 
 class Particles:
-    def __init__(self, n=100, where=None, drawing=None):
+    def __init__(self, n=500, where=None, drawing=None):
         """
         Creates particle set with given initial position
         :param n: number of particles
@@ -99,13 +99,18 @@ class Particles:
         y_norm /= Y_MAX
         return .5 * (np.var(x_norm) + np.var(y_norm))
 
-    def get_position_by_weight(self, position_confidence=True):
+    def get_position_by_weight(self, position_confidence=True, drawing=True):
         """
         :return: highest weighted particle position
         """
         i = np.argmax(self.weights)
         x_approx, y_approx = self.locations[i]
         o_approx = self.orientations[i]
+        if self.drawing:
+            for r in self.locations:
+                self.drawing.add_point(r[0], r[1])
+            self.drawing.add_big_point(x_approx, y_approx)
+            self.drawing.save()
         if position_confidence:
             return x_approx, y_approx, o_approx, self.get_position_conf()
         else:
@@ -129,7 +134,7 @@ class Particles:
 
     def forward(self, distance):
         """Moves the particles forward"""
-        #forward_inferred = random.gauss(distance, FORWARD_STD_FRAC * distance)
+        # forward_inferred = random.gauss(distance, FORWARD_STD_FRAC * distance)
         # taking into account possible unintended rotation
         # TODO drift
         # rotation_inferred = random.gauss(0, ROTATION_STD_ABS)

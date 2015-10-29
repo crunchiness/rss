@@ -1,6 +1,8 @@
 from body.sensors import SensorRunningAverage
 import utils
 from state.map import NODES
+import time
+import numpy as np
 
 DESTINATION_ROOM = 'D'
 
@@ -40,7 +42,11 @@ class RoomBelief:
                 seen.add(key)
         self.observations = self.observations[1:] + [seen]
 
-    def get_belief(self):
+    def get_belief(self, basic_start=False):
+        """
+        :param basic_start: if set to true, must return A or F
+        :return:
+        """
         # won't actually add up to one, but it's ok
         room_probabilities = {
             'A': 0.,
@@ -60,9 +66,15 @@ class RoomBelief:
         max_prob = 0.
         max_prob_room = 'A'
         for key in room_probabilities:
-            if room_probabilities[key] > max_prob:
-                max_prob = room_probabilities[key]
-                max_prob_room = key
+            if basic_start:
+                if room_probabilities[key] > max_prob and key in ['A', 'F']:
+                    max_prob = room_probabilities[key]
+                    max_prob_room = key
+            else:
+                if room_probabilities[key] > max_prob:
+                    max_prob = room_probabilities[key]
+                    max_prob_room = key
+
         return max_prob_room
 
 def wander(sensors, particles, motors, front_ir, right_ir, state, vision):
@@ -85,13 +97,16 @@ def wander(sensors, particles, motors, front_ir, right_ir, state, vision):
             # Update position via particle filter
             front_ir_reading = sensors.get_ir_front()
             right_ir_reading = sensors.get_ir_right()
+            front_ir.add_value(front_ir_reading)
+            right_ir.add_value(right_ir_reading)
             front_avg = front_ir.get_avg()
             right_avg = right_ir.get_avg()
             particles.sense({
-                'front_ir': front_ir_reading if front_ir_reading is not None else 0,
-                'right_ir': right_ir_reading if right_ir_reading is not None else 0,
+                'IR_front': front_ir_reading if front_ir_reading is not None else 0,
+                'IR_right': right_ir_reading if right_ir_reading is not None else 0,
             })
             x, y, o, xy_conf = particles.get_position_by_weight()
+            particles.resample()
 
             # we are sure enough, go back to high level plan execution
             if xy_conf >= LOCALISATION_CONF:
@@ -104,9 +119,10 @@ def wander(sensors, particles, motors, front_ir, right_ir, state, vision):
 
         if front_avg <= 15:
             motors.turn_by(30)
+            particles.rotate(30. * np.pi / 180.)
         elif right_avg <= 15:
             motors.turn_by(-30)
-
+            particles.rotate(-30. * np.pi / 180.)
 
 def travel(sensors, particles, motors, state, vision):
     """Loop for when we know what where we are, aka loop for travelling
@@ -120,12 +136,14 @@ def travel(sensors, particles, motors, state, vision):
 
             # orientate towards the goal
             turn_angle = utils.orientate(milestone, x, y, o)
-            motors.turn_by(turn_angle)
+            motors.turn_by(turn_angle, radians=True)
+            particles.rotate(turn_angle)
 
             # go a small step forwards
             distance = utils.euclidean_distance((milestone['x'], milestone['y']), (x, y))
             if distance > MAX_STEP_SIZE:
                 motors.go_forward(distance)
+                particles.forward(distance)
 
             # keep sensing the world
             state['room_belief'].update_belief(vision.belief)
@@ -133,15 +151,36 @@ def travel(sensors, particles, motors, state, vision):
             front_ir_reading = sensors.get_ir_front()
             right_ir_reading = sensors.get_ir_right()
             particles.sense({
-                'front_ir': front_ir_reading,
-                'right_ir': right_ir_reading
+                'IR_front': front_ir_reading,
+                'IR_right': right_ir_reading
             })
             x, y, o, xy_conf = particles.get_position_by_weight()
+            particles.resample()
             if xy_conf < LOCALISATION_CONF_BREAK:
                 # we got lost, go back to localization
                 state['mode'] = 'wandering'
                 return
 
+def look_around(motors, sensors, front_ir, right_ir, particles, state, vision):
+    n = 12
+    for i in xrange(n):
+        motors.turn_by(360 / n)
+        particles.rotate(2 * np.pi / n)
+        front_ir_reading = sensors.get_ir_front()
+        right_ir_reading = sensors.get_ir_right()
+        front_ir.add_value(front_ir_reading)
+        right_ir.add_value(right_ir_reading)
+        particles.sense({
+            'IR_front': front_ir_reading if front_ir_reading is not None else 0,
+            'IR_right': right_ir_reading if right_ir_reading is not None else 0,
+        })
+        particles.resample()
+        state['room_belief'].update_belief(vision.belief)
+    start_room = state['room_belief'].get_belief(basic_start=True)
+    f = open('start_room.txt', 'w')
+    f.write(start_room)
+    f.close()
+    state['mode'] = 'wandering'
 
 def wander_and_travel(sensors, particles, motors, vision):
     """Robot logic for milestone 1
@@ -158,9 +197,14 @@ def wander_and_travel(sensors, particles, motors, vision):
     right_ir = SensorRunningAverage()
 
     while True:
-        if state['mode'] == 'wandering':
+        if state['mode'] == 'starting':
+            print 'Looking around'
+            look_around(motors, sensors, front_ir, right_ir, particles, state, vision)
+        elif state['mode'] == 'wandering':
+            print 'Wandering'
             wander(sensors, particles, motors, front_ir, right_ir, state, vision)
         elif state['mode'] == 'travelling':
+            print 'Travelling'
             travel(sensors, particles, motors, state, vision)
         else:
             raise Exception('Unknown state {0}'.format(state['mode']))
