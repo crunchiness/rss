@@ -19,8 +19,8 @@ THRESHOLDS = {
     },
     'orange': {
         'h': (5, 15),
-        's': (50, 255),
-        'v': (152, 255)
+        's': (160, 255),
+        'v': (160, 255)
     },
     'blue': {
         'h': (95, 117),
@@ -154,5 +154,5 @@ class Vision:
         img = self.io.cameraRead()
         if img.__class__ == np.ndarray:
             self.belief = detect_pieces(img, save=False, display=False)
-            cv2.imwrite('camera-' + datetime.datetime.now().isoformat() + '.png', img)
+            # cv2.imwrite('camera-' + datetime.datetime.now().isoformat() + '.png', img)
             time.sleep(0.5)
