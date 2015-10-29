@@ -422,13 +422,78 @@ class Particles:
 
     @staticmethod
     def model_beam(distance, measurements):
-        std = 5
+        std = 5.0
         if distance <= 10:
             return np.random.uniform(0.0, 40.0, measurements)
         if distance >= 90:
             return np.multiply(np.ones(measurements), 90)
         else:
-            return (np.multiply(np.random.rand(measurements), std), distance)
+            return np.add(np.multiply(np.random.normal(size=measurements), std), -0.5*std + distance)
+
+    @staticmethod
+    def learn_intrinsic_parameters(measurements, predictions):
+        prob_hit_std = 10.0
+        unexpected_decay_const = 0.5
+        #potentially to be changed to while
+        for l in xrange(20):
+            e = np.empty((len(measurements), 4))
+            for i in xrange(len(measurements)):
+                probabilities = Particles.learn_intrinsic_parameters_helper(predictions[i], measurements[i],
+                                                                            prob_hit_std, unexpected_decay_const)
+                e[i] = np.divide(probabilities, np.sum(probabilities))
+            z = np.divide(np.sum(e.T, axis=1), np.linalg.norm(measurements))
+            prob_hit_std = \
+            np.sqrt(
+                np.divide(
+                    np.sum(
+                        np.multiply(
+                            np.power(
+                                np.subtract(measurements, predictions),
+                                2
+                            ),
+                            e.T[0]
+                        )
+                    ),
+                    np.sum(e.T[0])
+                )
+            )
+            unexpected_decay_const = \
+            np.divide(
+                np.sum(e.T[1]),
+                np.sum(
+                    np.multiply(
+                        e.T[1],
+                        measurements
+                    )
+                )
+            )
+        output = z.tolist()
+        output.append(prob_hit_std)
+        output.append(unexpected_decay_const)
+        return output
+
+
+    @staticmethod
+    def learn_intrinsic_parameters_helper(predicted, measurement, prob_hit_std, unexpected_decay_const):
+
+        prob_hit = math.exp(-(measurement - predicted) ** 2 / (prob_hit_std ** 2) / 2.0) \
+                       / math.sqrt(2.0 * math.pi * (prob_hit_std ** 2))
+
+        if measurement < predicted:
+            prob_unexpected = unexpected_decay_const * math.exp(-unexpected_decay_const * measurement) \
+                              / (1 - math.exp(-unexpected_decay_const * predicted))
+        else:
+            prob_unexpected = 0
+
+        prob_rand = 1.0 / MAX_BEAM_RANGE
+
+        if 89 <= measurement <= 91:
+            prob_max = 1
+        else:
+            prob_max = 0
+
+        return np.array([prob_hit, prob_unexpected, prob_rand, prob_max],
+                                 dtype=np.float32)
 
 class Robot:
     """Only for keeping track of our real robot"""
