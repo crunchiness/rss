@@ -67,3 +67,4 @@ venv/
 resources/
 *.png
 .DS_Store
+*.npy

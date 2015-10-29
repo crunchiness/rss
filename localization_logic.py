@@ -209,3 +209,39 @@ def wander_and_travel(sensors, particles, motors, vision):
             travel(sensors, particles, motors, state, vision)
         else:
             raise Exception('Unknown state {0}'.format(state['mode']))
+
+
+def perform_basic_milestone(sensors, motors):
+    # Detect the room
+    n = 12
+    for i in xrange(n):
+        motors.turn_by(360 / n)
+    start_room = 'A' if DESTINATION_ROOM in ['B', 'C'] else 'F'
+    f = open('start_room.txt', 'w')
+    f.write(start_room)
+    f.close()
+
+    # Go to destination
+    value = sensors.get_ir_front()
+    total_distance = 0
+    while total_distance < 150:
+        while value < 70:
+            motors.turn_by(10)
+            value = sensors.get_ir_front()
+        motors.go_forward(10)
+        total_distance += 10
+        value = sensors.get_ir_front()
+    if DESTINATION_ROOM in ['E', 'B']:
+        # right
+        motors.turn_by(90)
+    elif DESTINATION_ROOM in ['C', 'D']:
+        motors.turn_by(-90)
+        # left
+    value = sensors.get_ir_front()
+    while value > 20:
+        motors.go_forward(10)
+        value = sensors.get_ir_front()
+
+    # Stop this madness
+    while True:
+        pass
