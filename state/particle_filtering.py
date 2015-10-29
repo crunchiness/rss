@@ -72,6 +72,7 @@ class Particles:
 
         self.orientations = np.multiply(np.array([2.0 * pi]), np.random.rand(self.N)).astype(np.float32)
         self.weights = np.ones(self.N, dtype=np.float32)
+        self.weights = np.divide(self.weights, np.sum(self.weights))
 
     def get_position_by_average(self):
         """
@@ -191,6 +192,7 @@ class Particles:
                     probabilities[i] *= 0.01
 
         self.weights = np.multiply(self.weights, probabilities)
+        self.weights = np.divide(self.weights, np.sum(self.weights))
 
     @staticmethod
     def is_forbidden(location):
@@ -199,6 +201,11 @@ class Particles:
         return False
 
     def resample(self):
+        ess = 1/np.sum(np.power(self.weights, 2))
+        print ess
+        if ess > self.N/2:
+            return
+
         # TODO different resampling
         new_locations = np.zeros((self.N, 2), dtype=np.int16)
         new_orientations = np.zeros(self.N, dtype=np.float32)
@@ -206,8 +213,9 @@ class Particles:
         beta = 0.0
         mw = max(self.weights)
 
+        random_part = 0.0
         p3index = 0
-        for i in range(self.N):
+        for i in range(int((1-random_part)*self.N)):
             beta += random.random() * 2.0 * mw
             while beta > self.weights[index]:
                 beta -= self.weights[index]
@@ -215,10 +223,15 @@ class Particles:
             new_locations[p3index] = self.locations[index]
             new_orientations[p3index] = self.orientations[index]
             p3index += 1
+
         self.locations = new_locations
         self.orientations = new_orientations
 
+        self.locations[p3index:self.N] = np.multiply(np.array([X_MAX, Y_MAX],dtype=np.float32), np.random.rand(self.N - p3index, 2))
+        self.orientations[p3index:self.N] = np.multiply(np.array([2.0 * pi]), np.random.rand(self.N - p3index)).astype(np.float32)
+
         self.weights = np.ones(self.weights.shape).astype(np.float32)
+        self.weights = np.divide(self.weights, np.sum(self.weights))
 
     def location(self, i):
         """
@@ -333,7 +346,10 @@ class Particles:
 
     @staticmethod
     def measurement_prob_ir(measurement, predicted):
-        prob_hit_std = 5.0
+        measurement = int(measurement)
+        predicted = int(predicted)
+
+        prob_hit_std = 15.0
         prob_hit = math.exp(-(measurement - predicted) ** 2 / (prob_hit_std ** 2) / 2.0) \
                        / math.sqrt(2.0 * math.pi * (prob_hit_std ** 2))\
 
