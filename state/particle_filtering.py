@@ -124,7 +124,7 @@ class Particles:
                 self.orientations,
                 np.add(
                     np.multiply(
-                        np.random.rand(self.N),
+                        np.random.normal(size=self.N),
                         ROTATION_STD_ABS
                     ),
                     -0.5*ROTATION_STD_ABS + rotation
@@ -143,7 +143,7 @@ class Particles:
 
         orientations = np.add(
             np.multiply(
-                np.random.rand(self.N),
+                np.random.normal(size=self.N),
                 DRIFT_ROTATION_STD_ABS
             ),
             self.orientations
@@ -154,7 +154,7 @@ class Particles:
         distances =\
         np.add(
             np.multiply(
-                np.random.rand(self.N),
+                np.random.normal(size=self.N),
                 FORWARD_STD_FRAC*distance
             ),
             (1-0.5*FORWARD_STD_FRAC)*distance
@@ -545,6 +545,8 @@ class Robot:
         """
         rotation_inferred = random.gauss(rotation, ROTATION_STD_ABS)
         self.orientation = (self.orientation + rotation_inferred) % (2.0 * math.pi)
+        self.location = np.add(self.location,
+                               (np.random.rand(self.location.shape)-0.5)*2)
 
     def forward(self, distance):
         """
