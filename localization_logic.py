@@ -1,8 +1,7 @@
+import numpy as np
 from body.sensors import SensorRunningAverage
 import utils
 from state.map import NODES
-import time
-import numpy as np
 
 DESTINATION_ROOM = 'D'
 
@@ -14,8 +13,6 @@ LOCALISATION_CONF_BREAK = 0.4
 
 # Max step size in cm when were executing a plan
 MAX_STEP_SIZE = 5.
-
-# TODO: incorporate vision!!
 
 
 class RoomBelief:
@@ -77,6 +74,7 @@ class RoomBelief:
 
         return max_prob_room
 
+
 def wander(sensors, particles, motors, front_ir, right_ir, state, vision):
     """Loop for when we are unsure of our location at all
     """
@@ -124,6 +122,7 @@ def wander(sensors, particles, motors, front_ir, right_ir, state, vision):
             motors.turn_by(-30)
             particles.rotate(-30. * np.pi / 180.)
 
+
 def travel(sensors, particles, motors, state, vision):
     """Loop for when we know what where we are, aka loop for travelling
     """
@@ -161,6 +160,7 @@ def travel(sensors, particles, motors, state, vision):
                 state['mode'] = 'wandering'
                 return
 
+
 def look_around(motors, sensors, front_ir, right_ir, particles, state, vision):
     n = 12
     for i in xrange(n):
@@ -182,6 +182,7 @@ def look_around(motors, sensors, front_ir, right_ir, particles, state, vision):
     f.close()
     state['mode'] = 'travelling'
 
+
 def wander_and_travel(sensors, particles, motors, vision):
     """Robot logic for milestone 1
        It has two states:
@@ -190,7 +191,7 @@ def wander_and_travel(sensors, particles, motors, vision):
        Robot may fall back to wandering if we get lost.
     """
     state = {
-        'mode': 'wandering',
+        'mode': 'starting',
         'room_belief': RoomBelief()
     }
     front_ir = SensorRunningAverage()

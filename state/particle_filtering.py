@@ -45,6 +45,7 @@ RAYCASTING_DISTANCES = None
 if os.path.exists('raycasting_distances_bin2.npy'):
     RAYCASTING_DISTANCES = np.load('raycasting_distances_bin2.npy').astype(np.uint8)
 
+
 class Particles:
     def __init__(self, n=500, where=None, drawing=None):
         """
@@ -100,7 +101,7 @@ class Particles:
         y_norm /= Y_MAX
         return .5 * (np.var(x_norm) + np.var(y_norm))
 
-    def get_position_by_weight(self, position_confidence=True, drawing=True):
+    def get_position_by_weight(self, position_confidence=True):
         """
         :return: highest weighted particle position
         """
@@ -127,7 +128,7 @@ class Particles:
                         np.random.normal(size=self.N),
                         ROTATION_STD_ABS
                     ),
-                    -0.5*ROTATION_STD_ABS + rotation
+                    -0.5 * ROTATION_STD_ABS + rotation
                 )
             ),
             2.0 * pi)\
@@ -155,9 +156,9 @@ class Particles:
         np.add(
             np.multiply(
                 np.random.normal(size=self.N),
-                FORWARD_STD_FRAC*distance
+                FORWARD_STD_FRAC * distance
             ),
-            (1-0.5*FORWARD_STD_FRAC)*distance
+            (1 - 0.5 * FORWARD_STD_FRAC) * distance
         )
 
         for i in xrange(len(vectors)):
@@ -428,7 +429,7 @@ class Particles:
         for x in range(xmin, xmax):
             print(x)
             for y in xrange(ym):
-                #we need offset to calculate the center of the tile
+                # we need offset to calculate the center of the tile
                 location = np.array([int(SIZE_OF_BINS * (x + 0.5)), int(SIZE_OF_BINS * (y + 0.5))]).astype(np.int16)
                 for angle_number in xrange(NUMBER_OF_ANGLES):
                     temp = Particles.measurement_prediction_explicit(location, angle_number * angle_increment)
@@ -451,7 +452,7 @@ class Particles:
     def learn_intrinsic_parameters(measurements, predictions):
         prob_hit_std = 10.0
         unexpected_decay_const = 0.5
-        #potentially to be changed to while
+        # potentially to be changed to while
         for l in xrange(20):
             e = np.empty((len(measurements), 4))
             for i in xrange(len(measurements)):
@@ -488,7 +489,6 @@ class Particles:
         output.append(prob_hit_std)
         output.append(unexpected_decay_const)
         return output
-
 
     @staticmethod
     def learn_intrinsic_parameters_helper(predicted, measurement, prob_hit_std, unexpected_decay_const):
