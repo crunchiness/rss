@@ -14,7 +14,7 @@ FORWARD_STD_FRAC = 0.1
 
 BUFFER_ZONE_FROM_WALLS = 22
 
-SIZE_OF_BINS = 8
+SIZE_OF_BINS = 2
 NUMBER_OF_ANGLES = 256
 
 # edge r to r+s, tuples in the (r, s) format, not (r, r+s)
@@ -42,8 +42,8 @@ if os.path.exists('closest_distances.npy'):
     DISTANCE_TO_CLOSEST_WALL = np.load('closest_distances.npy').astype(np.uint8)
 
 RAYCASTING_DISTANCES = None
-if os.path.exists('raycasting_distances_8cm_batches_256angles.npy'):
-    RAYCASTING_DISTANCES = np.load('raycasting_distances_8cm_batches_256angles.npy').astype(np.uint8)
+if os.path.exists('raycasting_distances_bin2.npy'):
+    RAYCASTING_DISTANCES = np.load('raycasting_distances_bin2.npy').astype(np.uint8)
 
 class Particles:
     def __init__(self, n=500, where=None, drawing=None):
@@ -545,8 +545,6 @@ class Robot:
         """
         rotation_inferred = random.gauss(rotation, ROTATION_STD_ABS)
         self.orientation = (self.orientation + rotation_inferred) % (2.0 * math.pi)
-        self.location = np.add(self.location,
-                               (np.random.rand(self.location.shape)-0.5)*2)
 
     def forward(self, distance):
         """
