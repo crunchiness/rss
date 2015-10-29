@@ -21,7 +21,7 @@ class Toddler:
         self.motors = Motors(io)
         self.sensors = Sensors(io)
         self.vision = Vision(io)
-        self.particles = Particles(drawing=Drawing())
+        self.particles = Particles(n=1000, drawing=Drawing(), where='1base')
 
     def stop(self):
         """For development only"""

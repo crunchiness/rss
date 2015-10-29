@@ -86,7 +86,7 @@ def wander(sensors, particles, motors, front_ir, right_ir, state, vision):
         # localization - driving around avoiding obstacles
         front_avg = front_ir.get_avg()
         right_avg = right_ir.get_avg()
-        while front_avg > 15 and right_avg > 15:
+        while front_avg > 20 and right_avg > 15:
 
             # Move forwards 10 cm
             motors.go_forward(10)
@@ -180,7 +180,7 @@ def look_around(motors, sensors, front_ir, right_ir, particles, state, vision):
     f = open('start_room.txt', 'w')
     f.write(start_room)
     f.close()
-    state['mode'] = 'wandering'
+    state['mode'] = 'travelling'
 
 def wander_and_travel(sensors, particles, motors, vision):
     """Robot logic for milestone 1
