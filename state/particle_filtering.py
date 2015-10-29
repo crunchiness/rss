@@ -216,7 +216,6 @@ class Particles:
             new_orientations[p3index] = self.orientations[index]
             p3index += 1
         self.locations = new_locations
-        print(self.locations)
         self.orientations = new_orientations
 
         self.weights = np.ones(self.weights.shape).astype(np.float32)
@@ -335,11 +334,8 @@ class Particles:
     @staticmethod
     def measurement_prob_ir(measurement, predicted):
         prob_hit_std = 5.0
-        # if 10 < predicted < 80:
         prob_hit = math.exp(-(measurement - predicted) ** 2 / (prob_hit_std ** 2) / 2.0) \
-                       / math.sqrt(2.0 * math.pi * (prob_hit_std ** 2))
-        # else:
-        #     prob_hit = 0
+                       / math.sqrt(2.0 * math.pi * (prob_hit_std ** 2))\
 
         unexpected_decay_const = 0.5
         if measurement < predicted:
