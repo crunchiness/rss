@@ -101,7 +101,7 @@ class Particles:
         y_norm /= Y_MAX
         return .5 * (np.var(x_norm) + np.var(y_norm))
 
-    def get_position_by_weight(self, position_confidence=True):
+    def get_position_by_max_weight(self, position_confidence=True):
         """
         :return: highest weighted particle position
         """
@@ -115,6 +115,33 @@ class Particles:
             self.drawing.save()
         if position_confidence:
             return x_approx, y_approx, o_approx, self.get_position_conf()
+        else:
+            return x_approx, y_approx, o_approx
+
+    def get_position_by_weighted_average(self):
+        """
+        :return: weighted average particle position
+        """
+
+        x_approx, y_approx = np.average(
+            np.multiply(
+                self.weights,
+                self.locations.T
+            ),
+            axis = 1
+        )
+
+        o_approx = np.average(
+            np.multiply(
+                self.weights,
+                self.orientations
+            )
+        )
+        if self.drawing:
+            for r in self.locations:
+                self.drawing.add_point(r[0], r[1])
+            self.drawing.add_big_point(x_approx, y_approx)
+            self.drawing.save()
         else:
             return x_approx, y_approx, o_approx
 
