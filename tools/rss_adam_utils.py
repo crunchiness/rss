@@ -7,6 +7,7 @@ import os
 
 fig = plt.figure()
 
+
 def hsv_hist(img_file):
     global fig
     fig.canvas.draw()
@@ -43,7 +44,7 @@ def hsv_hist(img_file):
 def determine_boundaries(img_file):
     global fig
     plt.close("all")
-    fig=plt.figure()
+    fig = plt.figure()
     hsv_map = np.zeros((180, 256, 3), np.uint8)
     h, s = np.indices(hsv_map.shape[:2])
     hsv_map[:, :, 0] = h
@@ -170,8 +171,8 @@ def inrange_color(img_file, color_min, color_max):
 f = []
 path = '../resources/'
 for pic_file in os.listdir(path):
-        if '.jpg' in pic_file or '.png' in pic_file:
-            f.append(path + pic_file)
+    if '.jpg' in pic_file or '.png' in pic_file:
+        f.append(path + pic_file)
 
 currpos = 0
 
@@ -190,6 +191,7 @@ def key_event(e):
         determine_boundaries(f[currpos])
     else:
         return
+
 
 def show_histogram():
     determine_boundaries(f[0])
