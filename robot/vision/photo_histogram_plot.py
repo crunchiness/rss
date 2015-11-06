@@ -1,6 +1,7 @@
-import rss_adam_utils as utils
 import os
 import sys
+
+from robot.vision import rss_adam_utils as utils
 
 if len(sys.argv) == 2:
     utils.determine_boundaries(sys.argv[1])

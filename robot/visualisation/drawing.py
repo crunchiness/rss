@@ -1,7 +1,9 @@
+import datetime
+import os
 import numpy as np
 import cv2
-import datetime
-from state.map import X_MAX, Y_MAX, ARENA_WALLS
+
+from robot.state.map import X_MAX, Y_MAX, ARENA_WALLS
 
 
 class Drawing:
@@ -29,9 +31,15 @@ class Drawing:
     def add_big_point(self, x, y, color=(0, 255, 0)):
         cv2.circle(self.image, (int(x), int(y)), radius=2, color=color, thickness=3)
 
-    def save(self, name=None):
+    def save(self, name=None, path=None):
         """Saves to file and starts new drawing"""
+        base_path = os.path.dirname(os.path.dirname(__file__)).replace('/robot', '')
+        path = base_path + '/log/' if path is None else base_path + '/' + path
+        if not os.path.exists(path):
+            os.makedirs(path)
         if name is None:
             name = 'local-{0}.png'.format(datetime.datetime.now().isoformat())
-        cv2.imwrite(name, cv2.flip(self.image, 1))
+        result = cv2.imwrite(path + name, cv2.flip(self.image, 1))
+        if not result:
+            print 'Failed to save image ' + path + name
         self.image = np.copy(self.template)

@@ -1,5 +1,6 @@
 import numpy as np
-from state.map import Y_MAX, X_MAX
+
+from robot.state.map import Y_MAX, X_MAX
 
 
 def angle_between(p1, p2):
@@ -91,7 +92,7 @@ def orientate(milestone, x, y, orientation):
     return simplified
 
 
-from state.map import NODES
+from robot.state.map import NODES
 
 assert get_nearest_node(NODES, 280, 155) == ('F1', 0.0)
 assert get_nearest_node(NODES, 283, 159) == ('F1', 5.)

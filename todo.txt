@@ -1,4 +1,0 @@
-Ideas:
-calibrate the pace reduction due to battery dissipation by running from full to empty battery forth and back measuring distance constantly
-stuck detection using vision (if the frame doesnt change even though moving)
-dont come closer than distance x from walls
