@@ -1,10 +1,12 @@
-from body.sensors import SensorRunningAverage
-import utils
-from state.map import NODES
 import time
+
 import numpy as np
 
-DESTINATION_ROOM = 'D'
+from body.sensors import SensorRunningAverage
+import utils
+from robot.state.map import NODES
+
+DESTINATION_ROOM = 'B'
 
 # When this is reached we are sure enough of our location
 LOCALISATION_CONF = 0.6
@@ -14,8 +16,6 @@ LOCALISATION_CONF_BREAK = 0.4
 
 # Max step size in cm when were executing a plan
 MAX_STEP_SIZE = 5.
-
-# TODO: incorporate vision!!
 
 
 class RoomBelief:
@@ -77,6 +77,7 @@ class RoomBelief:
 
         return max_prob_room
 
+
 def wander(sensors, particles, motors, front_ir, right_ir, state, vision):
     """Loop for when we are unsure of our location at all
     """
@@ -124,6 +125,7 @@ def wander(sensors, particles, motors, front_ir, right_ir, state, vision):
             motors.turn_by(-30)
             particles.rotate(-30. * np.pi / 180.)
 
+
 def travel(sensors, particles, motors, state, vision):
     """Loop for when we know what where we are, aka loop for travelling
     """
@@ -161,6 +163,7 @@ def travel(sensors, particles, motors, state, vision):
                 state['mode'] = 'wandering'
                 return
 
+
 def look_around(motors, sensors, front_ir, right_ir, particles, state, vision):
     n = 12
     for i in xrange(n):
@@ -176,11 +179,12 @@ def look_around(motors, sensors, front_ir, right_ir, particles, state, vision):
         })
         particles.resample()
         state['room_belief'].update_belief(vision.belief)
-    start_room = state['room_belief'].get_belief(basic_start=True)
+    start_room = state['room_belief'].get_belief(basic_start=False)
     f = open('start_room.txt', 'w')
     f.write(start_room)
     f.close()
     state['mode'] = 'travelling'
+
 
 def wander_and_travel(sensors, particles, motors, vision):
     """Robot logic for milestone 1
@@ -190,7 +194,7 @@ def wander_and_travel(sensors, particles, motors, vision):
        Robot may fall back to wandering if we get lost.
     """
     state = {
-        'mode': 'wandering',
+        'mode': 'starting',
         'room_belief': RoomBelief()
     }
     front_ir = SensorRunningAverage()
@@ -208,3 +212,41 @@ def wander_and_travel(sensors, particles, motors, vision):
             travel(sensors, particles, motors, state, vision)
         else:
             raise Exception('Unknown state {0}'.format(state['mode']))
+
+
+def perform_basic_milestone(sensors, motors):
+    # Detect the room
+    # n = 12
+    # for i in xrange(n):
+    #     motors.turn_by(360 / n)
+    #     time.sleep(0.5)
+    start_room = 'A' if DESTINATION_ROOM in ['B', 'C'] else 'F'
+    f = open('start_room.txt', 'w')
+    f.write(start_room)
+    f.close()
+
+    # Go to destination
+    value = sensors.get_ir_front()
+    total_distance = 0
+    while total_distance < 170:
+        while value < 70:
+            motors.turn_by(10)
+            value = sensors.get_ir_front()
+        motors.go_forward(10)
+        total_distance += 10
+        value = sensors.get_ir_front()
+        time.sleep(0.3)
+    if DESTINATION_ROOM in ['E', 'B']:
+        # right
+        motors.turn_by(90)
+    elif DESTINATION_ROOM in ['C', 'D']:
+        motors.turn_by(-90)
+        # left
+    value = sensors.get_ir_front()
+    while value > 20:
+        motors.go_forward(10)
+        value = sensors.get_ir_front()
+
+    # Stop this madness
+    while True:
+        pass

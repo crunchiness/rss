@@ -1,5 +1,6 @@
 import numpy as np
-from state.map import Y_MAX, X_MAX
+
+from robot.state.map import Y_MAX, X_MAX
 
 
 def angle_between(p1, p2):
@@ -27,7 +28,7 @@ def find_shortest_path(nodes, start, end, path=None):
     shortest_path = None
     for node in nodes[start]['connects']:
         if node not in path:
-            new_path = find_shortest_path(node, end, path)
+            new_path = find_shortest_path(nodes, node, end, path)
             if new_path:
                 if not shortest_path or len(new_path) < len(shortest_path):
                     shortest_path = new_path
@@ -91,7 +92,7 @@ def orientate(milestone, x, y, orientation):
     return simplified
 
 
-from state.map import NODES
+from robot.state.map import NODES
 
 assert get_nearest_node(NODES, 280, 155) == ('F1', 0.0)
 assert get_nearest_node(NODES, 283, 159) == ('F1', 5.)

@@ -61,9 +61,9 @@ target/
 
 .idea/
 
-iotools.py
-sandbox.py
+images/
+log/
 venv/
 resources/
-*.png
 .DS_Store
+*.npy

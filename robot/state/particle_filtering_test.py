@@ -1,8 +1,9 @@
 import unittest
-from particle_filtering import *
+from math import sqrt
+
+from robot.state.particle_filtering import *
 import utils
-import numpy as np
-from math import pi, sqrt
+
 
 class MyTest(unittest.TestCase):
     def test_intersection_value(self):

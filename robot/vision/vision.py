@@ -153,6 +153,6 @@ class Vision:
             self.io.cameraGrab()
         img = self.io.cameraRead()
         if img.__class__ == np.ndarray:
-            self.belief = detect_pieces(img, save=False, display=False)
+            self.belief = detect_pieces(img, save=True, display=False)
             # cv2.imwrite('camera-' + datetime.datetime.now().isoformat() + '.png', img)
             time.sleep(0.5)

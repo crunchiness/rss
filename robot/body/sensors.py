@@ -7,11 +7,14 @@ Port mapping
 
 
 def ir_input_to_distance(voltage):
+    ir_max = 80
     try:
         value = 4800. / (voltage - 20.)
     except ZeroDivisionError:
-        return None
-    return value if value > 0 else None
+        return ir_max
+    if value > 80:
+        value = ir_max
+    return value if value > 0 else ir_max
 
 
 class Sensors:
