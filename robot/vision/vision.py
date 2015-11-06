@@ -4,6 +4,7 @@ import numpy as np
 import datetime
 import cv2  # 3.0.0-dev
 import time
+import robot.utils as utils
 
 
 THRESHOLDS = {
@@ -51,7 +52,7 @@ THRESHOLDS = {
 
 MIN_PIXELS = 16 * 16  # minimum number of pixels needed to confirm presence of object
 
-def detect_pieces(img_file, display=True, save=True):
+def detect_pieces(img_file, display=True, save=True, path='log/'):
     """
     detects shape (based on color)
     :return: list of tuples (bool, color)
@@ -92,7 +93,9 @@ def detect_pieces(img_file, display=True, save=True):
         img[440:440 + 120, 320:320 + 160] = bgr
         cv2.putText(img, 'original', (320, 440+140), cv2.FONT_HERSHEY_PLAIN, color=(0, 0, 0), fontScale=1)
         if save:
-            cv2.imwrite('detection-' + datetime.datetime.now().isoformat() + '.png', img)
+            path = utils.make_file_path(path)
+            file_name = 'detection-' + datetime.datetime.now().isoformat() + '.png'
+            cv2.imwrite(path + file_name, img)
         if display:
             cv2.imshow('window', img)
             cv2.waitKey(500)
@@ -154,5 +157,5 @@ class Vision:
         img = self.io.cameraRead()
         if img.__class__ == np.ndarray:
             self.belief = detect_pieces(img, save=True, display=False)
-            # cv2.imwrite('camera-' + datetime.datetime.now().isoformat() + '.png', img)
+            cv2.imwrite(utils.make_file_path() + 'camera-' + datetime.datetime.now().isoformat() + '.png', img)
             time.sleep(0.5)

@@ -2,7 +2,7 @@ import os
 
 from robot.vision import vision
 
-path = '../resources/'
+path = '../../resources/'
 
 for pic_file in os.listdir(path):
     if '.jpg' in pic_file or '.png' in pic_file:

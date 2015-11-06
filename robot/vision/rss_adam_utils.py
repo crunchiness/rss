@@ -193,6 +193,3 @@ def key_event(e):
 
 def show_histogram():
     determine_boundaries(f[0])
-
-
-    

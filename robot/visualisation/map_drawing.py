@@ -16,7 +16,6 @@ def draw_nodes(drawing, images_path, save):
         cv2.putText(drawing.image, node_id, (320-x, y), cv2.FONT_HERSHEY_PLAIN, color=(255, 255, 255), fontScale=1)
         drawing.image = cv2.flip(drawing.image, 1)
     if save:
-        print 'mm'
         drawing.save('map_nodes.png', images_path)
 
 

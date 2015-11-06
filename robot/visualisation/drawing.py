@@ -1,7 +1,7 @@
 import datetime
-import os
-import numpy as np
 import cv2
+import numpy as np
+import robot.utils as utils
 
 from robot.state.map import X_MAX, Y_MAX, ARENA_WALLS
 
@@ -33,13 +33,10 @@ class Drawing:
 
     def save(self, name=None, path=None):
         """Saves to file and starts new drawing"""
-        base_path = os.path.dirname(os.path.dirname(__file__)).replace('/robot', '')
-        path = base_path + '/log/' if path is None else base_path + '/' + path
-        if not os.path.exists(path):
-            os.makedirs(path)
         if name is None:
             name = 'local-{0}.png'.format(datetime.datetime.now().isoformat())
+        path = utils.make_file_path(path)
         result = cv2.imwrite(path + name, cv2.flip(self.image, 1))
         if not result:
-            print 'Failed to save image ' + path + name
+            print 'Failed to save image: ' + path + name
         self.image = np.copy(self.template)

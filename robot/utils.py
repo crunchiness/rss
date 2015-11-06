@@ -1,7 +1,14 @@
+import os
 import numpy as np
 
 from robot.state.map import Y_MAX, X_MAX
 
+def make_file_path(path=None):
+    base_path = os.path.dirname(os.path.dirname(__file__))
+    path = base_path + '/log/' if path is None else base_path + '/' + path
+    if not os.path.exists(path):
+        os.makedirs(path)
+    return path
 
 def angle_between(p1, p2):
     """Returns the angle in radians between two points"""
