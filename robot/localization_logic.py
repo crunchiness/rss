@@ -81,7 +81,7 @@ class RoomBelief:
 def wander(sensors, particles, motors, front_ir, right_ir, state, vision):
     """Loop for when we are unsure of our location at all
     """
-    x, y, o, xy_conf = particles.get_position_by_weight()
+    x, y, o, xy_conf = particles.get_position_by_weighted_average()
     while xy_conf < LOCALISATION_CONF:
 
         # localization - driving around avoiding obstacles
@@ -106,7 +106,7 @@ def wander(sensors, particles, motors, front_ir, right_ir, state, vision):
                 'IR_front': front_ir_reading if front_ir_reading is not None else 0,
                 'IR_right': right_ir_reading if right_ir_reading is not None else 0,
             })
-            x, y, o, xy_conf = particles.get_position_by_weight()
+            x, y, o, xy_conf = particles.get_position_by_weighted_average()
             particles.resample()
 
             # we are sure enough, go back to high level plan execution
@@ -130,7 +130,7 @@ def travel(sensors, particles, motors, state, vision):
     """Loop for when we know what where we are, aka loop for travelling
     """
     # TODO: add obstacle avoidance
-    x, y, o, xy_conf = particles.get_position_by_weight()
+    x, y, o, xy_conf = particles.get_position_by_weighted_average()
     path_to_room = utils.get_path_to_room(NODES, x, y, DESTINATION_ROOM)
 
     for milestone in path_to_room:
@@ -156,7 +156,7 @@ def travel(sensors, particles, motors, state, vision):
                 'IR_front': front_ir_reading,
                 'IR_right': right_ir_reading
             })
-            x, y, o, xy_conf = particles.get_position_by_weight()
+            x, y, o, xy_conf = particles.get_position_by_weighted_average()
             particles.resample()
             if xy_conf < LOCALISATION_CONF_BREAK:
                 # we got lost, go back to localization
