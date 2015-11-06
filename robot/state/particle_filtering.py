@@ -9,6 +9,7 @@ import numpy as np
 
 from robot.state.map import X_MAX, Y_MAX, ARENA_WALLS
 import utils
+from robot.utils import make_file_path
 
 ROTATION_STD_ABS = (5.0 / 360.0) * 2.0 * math.pi
 DRIFT_ROTATION_STD_ABS = (1.0 / 360.0) * 2.0 * math.pi
@@ -40,12 +41,14 @@ Y_BASE_OFFSET = 13
 X_BASE_LENGTH = 38
 Y_BASE_LENGTH = 44
 
-if os.path.exists('closest_distances.npy'):
-    DISTANCE_TO_CLOSEST_WALL = np.load('closest_distances.npy').astype(np.uint8)
+DISTANCE_TO_CLOSEST_WALL_FILE = make_file_path('robot/data/') + 'closest_distances.npy'
+if os.path.exists(DISTANCE_TO_CLOSEST_WALL_FILE):
+    DISTANCE_TO_CLOSEST_WALL = np.load(DISTANCE_TO_CLOSEST_WALL_FILE).astype(np.uint8)
 
 RAYCASTING_DISTANCES = None
-if os.path.exists('raycasting_distances_bin2.npy'):
-    RAYCASTING_DISTANCES = np.load('raycasting_distances_bin2.npy').astype(np.uint8)
+RAYCASTING_DISTANCES_FILE = make_file_path('robot/data/') + 'raycasting_distances_bin2.npy'
+if os.path.exists(RAYCASTING_DISTANCES_FILE):
+    RAYCASTING_DISTANCES = np.load(RAYCASTING_DISTANCES_FILE).astype(np.uint8)
 
 
 class Particles:
