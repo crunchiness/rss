@@ -1,12 +1,14 @@
 from __future__ import division
 
-import numpy as np
 import random
 import math
 from math import pi
-from state.map import X_MAX, Y_MAX, ARENA_WALLS
-import utils
 import os.path
+
+import numpy as np
+
+from robot.state.map import X_MAX, Y_MAX, ARENA_WALLS
+import utils
 
 ROTATION_STD_ABS = (5.0 / 360.0) * 2.0 * math.pi
 DRIFT_ROTATION_STD_ABS = (1.0 / 360.0) * 2.0 * math.pi

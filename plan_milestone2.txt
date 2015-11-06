@@ -1,0 +1,11 @@
+1. vision - see the resource
+2. look at the resource
+3. determine path to fully see the resource to be able to identify if correct
+4. identify if the resource to grab
+5. approach resource
+6. grab resource
+7. surrender
+
+todo:
+better sensor placement to avoid obstacles
+

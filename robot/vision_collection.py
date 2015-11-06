@@ -1,4 +1,4 @@
-from body.sensors import SensorRunningAverage
+from robot.body.sensors import SensorRunningAverage
 
 
 def vision_collection(sensors, motors):

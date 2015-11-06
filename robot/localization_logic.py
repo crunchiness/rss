@@ -1,9 +1,12 @@
+import time
+
 import numpy as np
+
 from body.sensors import SensorRunningAverage
 import utils
-from state.map import NODES
+from robot.state.map import NODES
 
-DESTINATION_ROOM = 'D'
+DESTINATION_ROOM = 'B'
 
 # When this is reached we are sure enough of our location
 LOCALISATION_CONF = 0.6
@@ -176,7 +179,7 @@ def look_around(motors, sensors, front_ir, right_ir, particles, state, vision):
         })
         particles.resample()
         state['room_belief'].update_belief(vision.belief)
-    start_room = state['room_belief'].get_belief(basic_start=True)
+    start_room = state['room_belief'].get_belief(basic_start=False)
     f = open('start_room.txt', 'w')
     f.write(start_room)
     f.close()
@@ -213,9 +216,10 @@ def wander_and_travel(sensors, particles, motors, vision):
 
 def perform_basic_milestone(sensors, motors):
     # Detect the room
-    n = 12
-    for i in xrange(n):
-        motors.turn_by(360 / n)
+    # n = 12
+    # for i in xrange(n):
+    #     motors.turn_by(360 / n)
+    #     time.sleep(0.5)
     start_room = 'A' if DESTINATION_ROOM in ['B', 'C'] else 'F'
     f = open('start_room.txt', 'w')
     f.write(start_room)
@@ -224,13 +228,14 @@ def perform_basic_milestone(sensors, motors):
     # Go to destination
     value = sensors.get_ir_front()
     total_distance = 0
-    while total_distance < 150:
+    while total_distance < 170:
         while value < 70:
             motors.turn_by(10)
             value = sensors.get_ir_front()
         motors.go_forward(10)
         total_distance += 10
         value = sensors.get_ir_front()
+        time.sleep(0.3)
     if DESTINATION_ROOM in ['E', 'B']:
         # right
         motors.turn_by(90)

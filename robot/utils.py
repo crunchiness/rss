@@ -1,6 +1,14 @@
+import os
 import numpy as np
-from state.map import Y_MAX, X_MAX
 
+from robot.state.map import Y_MAX, X_MAX
+
+def make_file_path(path=None):
+    base_path = os.path.dirname(os.path.dirname(__file__))
+    path = base_path + '/log/' if path is None else base_path + '/' + path
+    if not os.path.exists(path):
+        os.makedirs(path)
+    return path
 
 def angle_between(p1, p2):
     """Returns the angle in radians between two points"""
@@ -91,7 +99,7 @@ def orientate(milestone, x, y, orientation):
     return simplified
 
 
-from state.map import NODES
+from robot.state.map import NODES
 
 assert get_nearest_node(NODES, 280, 155) == ('F1', 0.0)
 assert get_nearest_node(NODES, 283, 159) == ('F1', 5.)
