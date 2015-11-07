@@ -7,15 +7,20 @@ Port mapping
 
 
 def ir_input_to_distance(voltage):
-    ir_max = 80
+    ir_max = 110
     try:
         value = 4800. / (voltage - 20.)
     except ZeroDivisionError:
         return ir_max
-    if value > 80:
+    if value > ir_max:
         value = ir_max
     return value if value > 0 else ir_max
 
+def sensor_input_to_distance(voltage):
+    sensor_max = 640.0
+    value = voltage * 1.296
+    if value > sensor_max:
+        value = sensor_max
 
 class Sensors:
     def __init__(self, io):
@@ -45,20 +50,30 @@ class Sensors:
     def get_ir_right(self):
         return ir_input_to_distance(self.get_ir_right_raw())
 
-    def get_sonar_row(self):
+    def get_sonar_raw(self):
         """
         :rtype : float
         """
         self.get_analogue()
         return self.analogue[2]
 
+    def get_sonar(self):
+        """
+        :rtype : float
+        """
+        self.get_analogue()
+        return sensor_input_to_distance(self.analogue[2])
+
     def get_irs(self):
         self.get_analogue()
-        return [ir_input_to_distance(self.analogue[0]), ir_input_to_distance(self.analogue[1])]
+        return [ir_input_to_distance(self.analogue[0]),
+                ir_input_to_distance(self.analogue[1])]
 
     def get_irs_and_sonar(self):
         self.get_analogue()
-        return [ir_input_to_distance(self.analogue[0]), ir_input_to_distance(self.analogue[1]), self.analogue[2]]
+        return [ir_input_to_distance(self.analogue[0]),
+                ir_input_to_distance(self.analogue[1]),
+                sensor_input_to_distance(self.analogue[2])]
 
 
 class SensorRunningAverage:

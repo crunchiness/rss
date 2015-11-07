@@ -10,7 +10,7 @@ from robot.state.particle_filtering import Particles
 from robot.visualisation.drawing import Drawing
 from localization_logic import wander_and_travel
 
-from robot.utils import log
+from robot.utils import log, collect_front_IR_and_sonar_measurements
 
 
 # TODO: sanity check jumping between rooms
@@ -33,7 +33,8 @@ class Toddler:
     def Control(self, ok):
         while ok():
             # perform_basic_milestone(self.sensors, self.motors)
-            wander_and_travel(self.sensors, self.particles, self.motors, self.vision)
+            # wander_and_travel(self.sensors, self.particles, self.motors, self.vision)
+            collect_front_IR_and_sonar_measurements(self.io)
 
     # This is a callback that will be called repeatedly.
     # It has its dedicated thread so you can keep block it.
