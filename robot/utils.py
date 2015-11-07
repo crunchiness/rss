@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import datetime
 
 from robot.state.map import Y_MAX, X_MAX
 
@@ -175,3 +176,6 @@ def determine_room(x, y):
             return 'E'
         else:
             return 'F'
+
+def log(text):
+    print (datetime.datetime.now().strftime('%H:%M') + ' - ' + text)

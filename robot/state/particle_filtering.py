@@ -9,7 +9,7 @@ import numpy as np
 
 from robot.state.map import X_MAX, Y_MAX, ARENA_WALLS
 import utils
-from robot.utils import make_file_path
+from robot.utils import make_file_path, log
 
 ROTATION_STD_ABS = (5.0 / 360.0) * 2.0 * math.pi
 DRIFT_ROTATION_STD_ABS = (1.0 / 360.0) * 2.0 * math.pi
@@ -61,6 +61,8 @@ class Particles:
         self.N = n
         self.drawing = drawing
 
+        log('Initiating particle filtering with setting where=' + where)
+
         if where == 'bases':
             a = (np.array([X_BASE_OFFSET, Y_BASE_OFFSET])
                  + np.multiply(np.array([X_BASE_LENGTH, Y_BASE_LENGTH]), np.random.rand(self.N/2, 2)))\
@@ -94,6 +96,8 @@ class Particles:
             self.drawing.add_big_point(location_approx[0], location_approx[1])
             self.drawing.save()
 
+        log('Average pose: {}, {}, {}'.format(location_approx[0], location_approx[1], o_approx))
+
         return location_approx[0], location_approx[1], o_approx, self.get_position_conf()
 
     def get_position_conf(self):
@@ -118,6 +122,9 @@ class Particles:
                 self.drawing.add_point(r[0], r[1])
             self.drawing.add_big_point(x_approx, y_approx)
             self.drawing.save()
+        
+        log('Max weight pose: {}, {}, {}'.format(x_approx, y_approx, o_approx))
+            
         if position_confidence:
             return x_approx, y_approx, o_approx, self.get_position_conf()
         else:
@@ -147,8 +154,10 @@ class Particles:
                 self.drawing.add_point(r[0], r[1])
             self.drawing.add_big_point(x_approx, y_approx)
             self.drawing.save()
-        else:
-            return x_approx, y_approx, o_approx
+        
+        log('Weighted average pose: {}, {}, {}'.format(x_approx, y_approx, o_approx))
+        
+        return x_approx, y_approx, o_approx
 
     def rotate(self, rotation):
         """Rotates all the particles"""
