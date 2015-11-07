@@ -4,6 +4,9 @@ import datetime
 
 from robot.state.map import Y_MAX, X_MAX
 
+from robot.body.sensors import Sensors
+import time
+
 def make_file_path(path=None):
     base_path = os.path.dirname(os.path.dirname(__file__))
     path = base_path + '/log/' if path is None else base_path + '/' + path
@@ -179,3 +182,19 @@ def determine_room(x, y):
 
 def log(text):
     print (datetime.datetime.now().strftime('%H:%M') + ' - ' + text)
+
+def collect_front_IR_and_sonar_measurements():
+    sensors = Sensors()
+
+    i = 0
+    base_path = os.path.dirname(os.path.dirname(__file__))
+    path = base_path + '/log/collect_front_IR_and_sonar_measurements{}.csv'
+    while os.path.exists(path.format(i)):
+        i += 1
+    path = path.format(i)
+
+    f = open(path, 'w')
+    while True:
+        f.write(sensors.get_irs_and_sonar())
+        time.sleep(0.001)
+    f.close()

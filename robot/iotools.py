@@ -352,3 +352,4 @@ class IOTools:
     def setSemaphor(self):
         self.__setModeLED(1,'flash', 2, 6, 0)
         self.__setModeLED(2,'flash', 2, 6, 1)
+

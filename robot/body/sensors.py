@@ -45,6 +45,21 @@ class Sensors:
     def get_ir_right(self):
         return ir_input_to_distance(self.get_ir_right_raw())
 
+    def get_sonar_row(self):
+        """
+        :rtype : float
+        """
+        self.get_analogue()
+        return self.analogue[2]
+
+    def get_irs(self):
+        self.get_analogue()
+        return [ir_input_to_distance(self.analogue[0]), ir_input_to_distance(self.analogue[1])]
+
+    def get_irs_and_sonar(self):
+        self.get_analogue()
+        return [ir_input_to_distance(self.analogue[0]), ir_input_to_distance(self.analogue[1]), self.analogue[2]]
+
 
 class SensorRunningAverage:
     # TODO: values should expire if new are not added

@@ -7,8 +7,10 @@ from body.motors import Motors
 from body.sensors import Sensors
 from vision.vision import Vision
 from robot.state.particle_filtering import Particles
-from robot.visualisation.visual import Drawing
+from robot.visualisation.drawing import Drawing
 from localization_logic import wander_and_travel
+
+from robot.utils import log
 
 
 # TODO: sanity check jumping between rooms
