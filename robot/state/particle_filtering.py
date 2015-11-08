@@ -11,9 +11,9 @@ from robot.state.map import X_MAX, Y_MAX, ARENA_WALLS
 import utils
 from robot.utils import make_file_path, log
 
-ROTATION_STD_ABS = (5.0 / 360.0) * 2.0 * math.pi
-DRIFT_ROTATION_STD_ABS = (1.0 / 360.0) * 2.0 * math.pi
-FORWARD_STD_FRAC = 0.1
+ROTATION_STD_ABS = (10.0 / 360.0) * 2.0 * math.pi
+DRIFT_ROTATION_STD_ABS = (5.0 / 360.0) * 2.0 * math.pi
+FORWARD_STD_FRAC = 0.15
 
 BUFFER_ZONE_FROM_WALLS = 22
 
@@ -46,15 +46,24 @@ UNEXPECTED_DECAY_CONST_SONAR = 0.01813218480166167
 PROB_HIT_STD_IR = 10.0
 PROB_HIT_STD_SONAR = 25.0
 
-DISTANCE_TO_CLOSEST_WALL_FILE = make_file_path('robot/data/') + 'closest_distances.npy'
+KLD_Z_DELTA = 2.23 # for delta = 0.1
+KLD_EPSILON = 0.05
+KLD_BIN_SIZE = 8
+KLD_NUMBER_OF_ANGLES = 8
+KLD_MAX_PARTICLES = 10000
+
+DISTANCE_TO_CLOSEST_WALL_FILE = make_file_path('rss/robot/data/') + 'closest_distances.npy'
 if os.path.exists(DISTANCE_TO_CLOSEST_WALL_FILE):
     DISTANCE_TO_CLOSEST_WALL = np.load(DISTANCE_TO_CLOSEST_WALL_FILE).astype(np.uint8)
+else:
+    log('Couldnt find DISTANCE_TO_CLOSEST_WALL_FILE: {}'.format(str(DISTANCE_TO_CLOSEST_WALL_FILE)))
 
 RAYCASTING_DISTANCES = None
-RAYCASTING_DISTANCES_FILE = make_file_path('robot/data/') + 'raycasting_distances_bin2.npy'
+RAYCASTING_DISTANCES_FILE = make_file_path('rss/robot/data/') + 'raycasting_distances_bin2.npy'
 if os.path.exists(RAYCASTING_DISTANCES_FILE):
     RAYCASTING_DISTANCES = np.load(RAYCASTING_DISTANCES_FILE).astype(np.uint8)
-
+else:
+    log('Couldnt find RAYCASTING_DISTANCES_FILE: {}'.format(str(RAYCASTING_DISTANCES_FILE)))
 
 class Particles:
     def __init__(self, n=500, where=None, drawing=None):
@@ -68,6 +77,63 @@ class Particles:
 
         log('Initiating particle filtering with setting where=' + str(where))
 
+        self.initialize_KLD(where)
+
+        self.weights = np.ones(self.N, dtype=np.float32)
+        self.weights = np.divide(self.weights, np.sum(self.weights))
+
+    def initialize_KLD(self, where):
+        H = set()
+        M = 0
+        k = 0
+
+        Mx = 1000
+
+        new_locations = list()
+        new_orientations = list()
+
+        while M < Mx and M < KLD_MAX_PARTICLES:
+            if where == 'bases':
+                if np.random.random() > 0.5:
+                    x = -int(np.random.random() * X_BASE_LENGTH) + int(X_MAX - X_BASE_OFFSET)
+                    y = -int(np.random.random() * Y_BASE_LENGTH) + int(Y_MAX - Y_BASE_OFFSET)
+                else:
+                    x =  int(np.random.random() * X_BASE_LENGTH) + int(X_BASE_OFFSET)
+                    y =  int(np.random.random() * Y_BASE_LENGTH) + int(Y_BASE_OFFSET)
+            elif where == '1base':
+                x =  int(np.random.random() * X_BASE_LENGTH) + int(X_BASE_OFFSET)
+                y =  int(np.random.random() * Y_BASE_LENGTH) + int(Y_BASE_OFFSET)
+            else:
+                x = int(np.random.random() * X_MAX)
+                y = int(np.random.random() * Y_MAX)
+
+            orientation = np.random.random() * 2.0 * pi
+            increment = 2.0*pi/KLD_NUMBER_OF_ANGLES
+            binned_orientation = int(((orientation + 0.5*increment) % (2.0 * pi)) / increment)
+
+            new_locations.append(np.array([x, y]))
+            new_orientations.append(orientation)
+
+            x = int(float(x)/float(KLD_BIN_SIZE))
+            y = int(float(y)/float(KLD_BIN_SIZE))
+
+            particle = tuple([x, y, binned_orientation])
+
+            if particle not in H:
+                k += 1
+                H.add(particle)
+                if k > 1:
+                    k = float(k)
+                    Mx = (k-1.0)/(2.0*KLD_EPSILON) * np.power(1.0 - 2.0/9.0/(k-1.0) + np.sqrt(2.0/9.0/(k-1.0))*KLD_Z_DELTA, 3)
+            M += 1
+            #if M%100==0: log('Mx: {}\nk: {}'.format(Mx, k))
+
+        self.N = len(new_locations)
+        log('CHANGED NUMBER OF PARTICLES: {}'.format(self.N))
+        self.locations = np.array(new_locations).astype(np.int16)
+        self.orientations = np.array(new_orientations).astype(np.float32)
+
+    def initiate_standard(self, where):
         if where == 'bases':
             a = (np.array([X_BASE_OFFSET, Y_BASE_OFFSET])
                  + np.multiply(np.array([X_BASE_LENGTH, Y_BASE_LENGTH]), np.random.rand(self.N/2, 2)))\
@@ -84,8 +150,6 @@ class Particles:
             self.locations = np.multiply(np.array([X_MAX, Y_MAX],dtype=np.float32), np.random.rand(self.N, 2)).astype(np.int16)
 
         self.orientations = np.multiply(np.array([2.0 * pi]), np.random.rand(self.N)).astype(np.float32)
-        self.weights = np.ones(self.N, dtype=np.float32)
-        self.weights = np.divide(self.weights, np.sum(self.weights))
 
     def get_position_by_average(self):
         """
@@ -120,6 +184,7 @@ class Particles:
         :return: highest weighted particle position
         """
         i = np.argmax(self.weights)
+
         x_approx, y_approx = self.locations[i]
         o_approx = self.orientations[i]
         if self.drawing:
@@ -139,8 +204,7 @@ class Particles:
         """
         :return: weighted average particle position
         """
-
-        x_approx, y_approx = np.average(
+        x_approx, y_approx = np.sum(
             np.multiply(
                 self.weights,
                 self.locations.T
@@ -148,7 +212,7 @@ class Particles:
             axis = 1
         )
 
-        o_approx = np.average(
+        o_approx = np.sum(
             np.multiply(
                 self.weights,
                 self.orientations
@@ -253,6 +317,54 @@ class Particles:
         if ess > self.N/2:
             return
 
+        self.resample_KLD()
+
+    def resample_KLD(self):
+        H = set()
+        M = 0
+        k = 0
+
+        Mx = 1000
+
+        new_locations = list()
+        new_orientations = list()
+
+        weights_cumsum = np.cumsum(self.weights)
+
+        while M < Mx and M < KLD_MAX_PARTICLES:
+            i = np.searchsorted(weights_cumsum, np.random.rand(1))[0]
+            if i == self.N:
+                i = self.N - 1
+            new_locations.append(self.locations[i])
+            new_orientations.append(self.orientations[i])
+
+            x, y = self.locations[i]
+
+            orientation = self.orientations[i]
+            increment = 2.0*pi/KLD_NUMBER_OF_ANGLES
+            binned_orientation = int(((orientation + 0.5*increment) % (2.0 * pi)) / increment)
+
+            x = int(float(x)/float(KLD_BIN_SIZE))
+            y = int(float(y)/float(KLD_BIN_SIZE))
+
+            particle = tuple([x, y, binned_orientation])
+
+            if particle not in H:
+                k += 1
+                H.add(particle)
+                if k > 1:
+                    Mx = (k-1)/(2*KLD_EPSILON) * np.power(1 - 2/9/(k-1) + np.sqrt(2/9/(k-1))*KLD_Z_DELTA, 3)
+            M += 1
+
+        self.N = len(new_locations)
+        log('KLD PARTICLES: {}'.format(self.N))
+        self.locations = np.array(new_locations).astype(np.int16)
+        self.orientations = np.array(new_orientations).astype(np.float32)
+
+        self.weights = np.ones(self.N).astype(np.float32)
+        self.weights = np.divide(self.weights, np.sum(self.weights))
+
+    def resample_standard(self):
         # TODO different resampling
         new_locations = np.zeros((self.N, 2), dtype=np.int16)
         new_orientations = np.zeros(self.N, dtype=np.float32)
@@ -277,7 +389,7 @@ class Particles:
         self.locations[p3index:self.N] = np.multiply(np.array([X_MAX, Y_MAX],dtype=np.float32), np.random.rand(self.N - p3index, 2))
         self.orientations[p3index:self.N] = np.multiply(np.array([2.0 * pi]), np.random.rand(self.N - p3index)).astype(np.float32)
 
-        self.weights = np.ones(self.weights.shape).astype(np.float32)
+        self.weights = np.ones(self.N).astype(np.float32)
         self.weights = np.divide(self.weights, np.sum(self.weights))
 
     def location(self, i):
@@ -288,10 +400,6 @@ class Particles:
         return self.locations[i]
 
     def orientation(self, i):
-        """
-        Returns a location vector
-        :return: location vector [x, y]
-        """
         return self.orientations[i]
 
     def at_orientation(self, i, vectors):
@@ -355,14 +463,27 @@ class Particles:
     def measurement_prediction_from_cache(location, orientation):
 
         x = int(location[0] / SIZE_OF_BINS)
-        y = int(location[0] / SIZE_OF_BINS)
+        y = int(location[1] / SIZE_OF_BINS)
+
+        x = min(x, X_MAX/SIZE_OF_BINS-1)
+        y = min(y, Y_MAX/SIZE_OF_BINS-1)
+
         increment = 2.0*pi/NUMBER_OF_ANGLES
         orientation = int(((orientation + 0.5*increment) % (2.0 * pi)) / increment)
 
         distances = {}
-        temp = RAYCASTING_DISTANCES[x][y][orientation]
-        distances['IR_left'] = temp[0]
-        distances['IR_right'] = temp[1]
+        temp = 0
+        try:
+            temp = RAYCASTING_DISTANCES[x][y][orientation]
+        except IndexError:
+            log('Trying to query RAYCASTING_DISTANCES x={} y={} angle={}'.format(x, y, orientation))
+
+        try:
+            distances['IR_left'] = temp[0]
+            distances['IR_right'] = temp[1]
+        except TypeError:
+            log('Trying to get distances x={} y={} angle={} temp={}'.format(x, y, orientation, temp))
+
         return distances
 
     def measurement_prediction(self, i):
@@ -381,9 +502,8 @@ class Particles:
         :param predictions: dictionary with 'IR_left' and 'IR_right'
         :return: probability of measurements
         """
-        # TODO establish common labels
 
-        weights = np.array([1, 1, 1], dtype=np.float32)
+        weights = np.array([1, 1], dtype=np.float32)
         weights = weights/np.sum(weights)
         probabilities = np.array([self.measurement_prob_ir(measurements['IR_left'], predictions['IR_left']),
                                   self.measurement_prob_ir(measurements['IR_right'], predictions['IR_right'])],
