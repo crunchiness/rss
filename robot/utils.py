@@ -183,8 +183,8 @@ def determine_room(x, y):
 def log(text):
     print (datetime.datetime.now().strftime('%H:%M') + ' - ' + text)
 
-def collect_front_IR_and_sonar_measurements():
-    sensors = Sensors()
+def collect_front_IR_and_sonar_measurements(io, ok):
+    sensors = Sensors(io)
 
     i = 0
     base_path = os.path.dirname(os.path.dirname(__file__))
@@ -193,8 +193,13 @@ def collect_front_IR_and_sonar_measurements():
         i += 1
     path = path.format(i)
 
+    log(path)
+
     f = open(path, 'w')
-    while True:
-        f.write(sensors.get_irs_and_sonar())
-        time.sleep(0.001)
+    while ok():
+        text = str(sensors.get_irs_and_sonar())
+        log(text)
+        f.write(text)
+        f.write('\n')
+        time.sleep(0.01)
     f.close()
