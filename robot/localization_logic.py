@@ -108,7 +108,7 @@ def wander(sensors, particles, motors, front_ir, right_ir, state, vision):
             front_avg = front_ir.get_avg()
             right_avg = right_ir.get_avg()
             particles.sense({
-                'IR_front': front_ir_reading if front_ir_reading is not None else 0,
+                'IR_left': front_ir_reading if front_ir_reading is not None else 0,
                 'IR_right': right_ir_reading if right_ir_reading is not None else 0,
             })
             x, y, o, xy_conf = particles.get_position_by_weighted_average()
@@ -162,7 +162,7 @@ def travel(sensors, particles, motors, state, vision):
             front_ir_reading = sensors.get_ir_front()
             right_ir_reading = sensors.get_ir_right()
             particles.sense({
-                'IR_front': front_ir_reading,
+                'IR_left': front_ir_reading,
                 'IR_right': right_ir_reading
             })
             x, y, o, xy_conf = particles.get_position_by_weighted_average()
@@ -188,7 +188,7 @@ def look_around(motors, sensors, front_ir, right_ir, particles, state, vision):
         front_ir.add_value(front_ir_reading)
         right_ir.add_value(right_ir_reading)
         particles.sense({
-            'IR_front': front_ir_reading if front_ir_reading is not None else 0,
+            'IR_left': front_ir_reading if front_ir_reading is not None else 0,
             'IR_right': right_ir_reading if right_ir_reading is not None else 0,
         })
         particles.resample()

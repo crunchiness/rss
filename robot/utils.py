@@ -8,7 +8,7 @@ from robot.body.sensors import Sensors
 import time
 
 def make_file_path(path=None):
-    base_path = os.path.dirname(os.path.dirname(__file__))
+    base_path = os.path.dirname(os.path.dirname(os.path.realpath('__file__')))
     path = base_path + '/log/' if path is None else base_path + '/' + path
     if not os.path.exists(path):
         os.makedirs(path)

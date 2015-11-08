@@ -29,7 +29,7 @@ ROBOT_EDGES = [
 ]
 
 SENSORS_LOCATIONS = {
-    'IR_front': {'location': [0.0, 21.0], 'orientation': 0.0},
+    'IR_left': {'location': [0.0, 21.0], 'orientation': 0.0},
     'IR_right': {'location': [7.5, 15.0], 'orientation': pi / 2.0},
     'sonar_front': {'location': [0.0, 21.0], 'orientation': 0.0},
 }
@@ -40,6 +40,11 @@ X_BASE_OFFSET = 22
 Y_BASE_OFFSET = 13
 X_BASE_LENGTH = 38
 Y_BASE_LENGTH = 44
+
+UNEXPECTED_DECAY_CONST_IR = 0.017801905399325038
+UNEXPECTED_DECAY_CONST_SONAR = 0.01813218480166167
+PROB_HIT_STD_IR = 10.0
+PROB_HIT_STD_SONAR = 25.0
 
 DISTANCE_TO_CLOSEST_WALL_FILE = make_file_path('robot/data/') + 'closest_distances.npy'
 if os.path.exists(DISTANCE_TO_CLOSEST_WALL_FILE):
@@ -61,7 +66,7 @@ class Particles:
         self.N = n
         self.drawing = drawing
 
-        log('Initiating particle filtering with setting where=' + where)
+        log('Initiating particle filtering with setting where=' + str(where))
 
         if where == 'bases':
             a = (np.array([X_BASE_OFFSET, Y_BASE_OFFSET])
@@ -318,11 +323,11 @@ class Particles:
             return Particles.measurement_prediction_from_cache(location, orientation)
 
         beam_front = utils.at_orientation([0, MAX_BEAM_RANGE],
-                                          orientation + SENSORS_LOCATIONS['IR_front']['orientation'])
+                                          orientation + SENSORS_LOCATIONS['IR_left']['orientation'])
         beam_right = utils.at_orientation([0, MAX_BEAM_RANGE],
                                           orientation + SENSORS_LOCATIONS['IR_right']['orientation'])
         front = np.add(location,
-                       utils.at_orientation(SENSORS_LOCATIONS['IR_front']['location'],
+                       utils.at_orientation(SENSORS_LOCATIONS['IR_left']['location'],
                                             orientation))
         right = np.add(location,
                        utils.at_orientation(SENSORS_LOCATIONS['IR_right']['location'],
@@ -334,7 +339,7 @@ class Particles:
 
         # find distances along beams to the closest walls
         distances = {}
-        for sensor_location, beam, label in (front, beam_front, 'IR_front'), (right, beam_right, 'IR_right'):
+        for sensor_location, beam, label in (front, beam_front, 'IR_left'), (right, beam_right, 'IR_right'):
             minimum_distance = MAX_BEAM_RANGE
             for wall in ARENA_WALLS:
                 intersection = utils.intersects_at(wall, (sensor_location, beam))
@@ -356,7 +361,7 @@ class Particles:
 
         distances = {}
         temp = RAYCASTING_DISTANCES[x][y][orientation]
-        distances['IR_front'] = temp[0]
+        distances['IR_left'] = temp[0]
         distances['IR_right'] = temp[1]
         return distances
 
@@ -372,14 +377,15 @@ class Particles:
         """
         Finds the measurements probability based on predictions.
 
-        :param measurements: dictionary with 'IR_front' and 'IR_right'
-        :param predictions: dictionary with 'IR_front' and 'IR_right'
+        :param measurements: dictionary with 'IR_left' and 'IR_right'
+        :param predictions: dictionary with 'IR_left' and 'IR_right'
         :return: probability of measurements
         """
         # TODO establish common labels
 
-        weights = np.array([0.5, 0.5], dtype=np.float32)
-        probabilities = np.array([self.measurement_prob_ir(measurements['IR_front'], predictions['IR_front']),
+        weights = np.array([1, 1, 1], dtype=np.float32)
+        weights = weights/np.sum(weights)
+        probabilities = np.array([self.measurement_prob_ir(measurements['IR_left'], predictions['IR_left']),
                                   self.measurement_prob_ir(measurements['IR_right'], predictions['IR_right'])],
                                  dtype=np.float32)
         probability = np.dot(weights, probabilities)
@@ -388,17 +394,15 @@ class Particles:
 
     @staticmethod
     def measurement_prob_ir(measurement, predicted):
-        measurement = int(measurement)
-        predicted = int(predicted)
+        measurement = float(measurement)
+        predicted = float(predicted)
 
-        prob_hit_std = 15.0
-        prob_hit = math.exp(-(measurement - predicted) ** 2 / (prob_hit_std ** 2) / 2.0) \
-                       / math.sqrt(2.0 * math.pi * (prob_hit_std ** 2))\
+        prob_hit = math.exp(-(measurement - predicted) ** 2 / (PROB_HIT_STD_IR ** 2) / 2.0) \
+                       / math.sqrt(2.0 * math.pi * (PROB_HIT_STD_IR ** 2))\
 
-        unexpected_decay_const = 0.5
         if measurement < predicted:
-            prob_unexpected = unexpected_decay_const * math.exp(-unexpected_decay_const * measurement) \
-                              / (1 - math.exp(-unexpected_decay_const * predicted))
+            prob_unexpected = UNEXPECTED_DECAY_CONST_IR * math.exp(-UNEXPECTED_DECAY_CONST_IR * measurement) \
+                              / (1 - math.exp(-UNEXPECTED_DECAY_CONST_IR * predicted))
         else:
             prob_unexpected = 0
 
@@ -406,7 +410,32 @@ class Particles:
 
         prob_max = 0.1 if predicted > 80 else 0
 
-        weights = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
+        weights = np.array([3.5132378215960895, 0.3817877358033755, 0.11134520952984188, 0.0], dtype=np.float32)
+        weights = weights/np.sum(weights)
+        probabilities = np.array([prob_hit, prob_unexpected, prob_rand, prob_max],
+                                 dtype=np.float32)
+        return np.dot(weights, probabilities)
+
+    @staticmethod
+    def measurement_prob_sonar(measurement, predicted):
+        measurement = float(measurement)
+        predicted = float(predicted)
+
+        prob_hit = math.exp(-(measurement - predicted) ** 2 / (PROB_HIT_STD_SONAR ** 2) / 2.0) \
+                       / math.sqrt(2.0 * math.pi * (PROB_HIT_STD_SONAR ** 2))\
+
+        if measurement < predicted:
+            prob_unexpected = UNEXPECTED_DECAY_CONST_SONAR * math.exp(-UNEXPECTED_DECAY_CONST_SONAR * measurement) \
+                              / (1 - math.exp(-UNEXPECTED_DECAY_CONST_SONAR * predicted))
+        else:
+            prob_unexpected = 0
+
+        prob_rand = 1 / MAX_BEAM_RANGE
+
+        prob_max = 0.1 if predicted > 80 else 0
+
+        weights = np.array([3.1964663753394977, 0.45801763386224276, 0.1066430442794567, 0.0], dtype=np.float32)
+        weights = weights/np.sum(weights)
         probabilities = np.array([prob_hit, prob_unexpected, prob_rand, prob_max],
                                  dtype=np.float32)
         return np.dot(weights, probabilities)
@@ -474,7 +503,7 @@ class Particles:
                 location = np.array([int(SIZE_OF_BINS * (x + 0.5)), int(SIZE_OF_BINS * (y + 0.5))]).astype(np.int16)
                 for angle_number in xrange(NUMBER_OF_ANGLES):
                     temp = Particles.measurement_prediction_explicit(location, angle_number * angle_increment)
-                    distances[x][y][angle_number][0] = temp['IR_front']
+                    distances[x][y][angle_number][0] = temp['IR_left']
                     distances[x][y][angle_number][1] = temp['IR_right']
 
         return distances
@@ -493,14 +522,18 @@ class Particles:
     def learn_intrinsic_parameters(measurements, predictions):
         prob_hit_std = 10.0
         unexpected_decay_const = 0.5
+        z = np.ones(4)
+
         # potentially to be changed to while
-        for l in xrange(20):
+        for l in xrange(10):
             e = np.empty((len(measurements), 4))
+
             for i in xrange(len(measurements)):
                 probabilities = Particles.learn_intrinsic_parameters_helper(predictions[i], measurements[i],
                                                                             prob_hit_std, unexpected_decay_const)
                 e[i] = np.divide(probabilities, np.sum(probabilities))
             z = np.divide(np.sum(e.T, axis=1), np.linalg.norm(measurements))
+
             prob_hit_std = \
             np.sqrt(
                 np.divide(
@@ -526,6 +559,8 @@ class Particles:
                     )
                 )
             )
+            print(z)
+
         output = z.tolist()
         output.append(prob_hit_std)
         output.append(unexpected_decay_const)

@@ -47,7 +47,7 @@ class MyTest(unittest.TestCase):
 
         particles.locations[0] = np.array([25, 25])
         particles.orientations[0] = 0.0
-        expected = {'IR_front': 132.0 - 25.0 - 21.0, 'IR_right': 143.0 - 25.0 - 7.5}
+        expected = {'IR_left': 132.0 - 25.0 - 21.0, 'IR_right': 143.0 - 25.0 - 7.5}
 
         actual = particles.measurement_prediction(0)
         for key, value in expected.iteritems():
