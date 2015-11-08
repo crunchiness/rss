@@ -61,7 +61,7 @@ class Particles:
         self.N = n
         self.drawing = drawing
 
-        log('Initiating particle filtering with setting where=' + where)
+        log('Initiating particle filtering with setting where=' + str(where))
 
         if where == 'bases':
             a = (np.array([X_BASE_OFFSET, Y_BASE_OFFSET])

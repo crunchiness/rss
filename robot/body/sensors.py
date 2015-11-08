@@ -21,6 +21,7 @@ def sensor_input_to_distance(voltage):
     value = voltage * 1.296
     if value > sensor_max:
         value = sensor_max
+    return value
 
 class Sensors:
     def __init__(self, io):
