@@ -197,9 +197,9 @@ def collect_front_IR_and_sonar_measurements(io, ok):
 
     f = open(path, 'w')
     while ok():
-        log(str(io.getSensors()) )
-        log(str(io.getInputs()) )
-        f.write(str(sensors.get_irs_and_sonar()))
+        text = str(sensors.get_irs_and_sonar())
+        log(text)
+        f.write(text)
         f.write('\n')
         time.sleep(0.01)
     f.close()
