@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 __SNADBOX_VERSION__="1.0.0"
 
+import iotools
 import traceback
 import datetime
 import threading
@@ -8,9 +9,6 @@ import time
 import signal
 import os
 import sys
-
-from robot import iotools, toddler
-
 
 class Logger(object):
     def __init__(self, onRobot):
@@ -32,19 +30,19 @@ class SandBox:
         self._version = "R:SS SandBox "+__SNADBOX_VERSION__
         print datetime.datetime.now()
         self.version()
-        self._IO= iotools.IOTools(onRobot)
+        self._IO=iotools.IOTools(onRobot)
         try:
             self._IO.open()
             time.sleep(2.0)
             sys.path.insert(0,'/home/student/')
-            sys.path.insert(1,'/home/tc/') 
-            import robot.toddler
+            sys.path.insert(1,'/home/tc/')
+            import toddler
             self._toddler = toddler.Toddler(self._IO)
             self._wrk = Workers(self._IO, self._toddler.Control, self._toddler.Vision)
         except Exception:
             self._IO._mod[0]=2
             print("The toddler is hurt:")
-            traceback.print_exc()     
+            traceback.print_exc()
 
     def version(self):
         print self._version
@@ -75,7 +73,7 @@ class Workers:
             except Exception:
                 self._workers[i][2]=0
                 print("Callback failed:")
-                traceback.print_exc()                
+                traceback.print_exc()
 
     def __led(self, OK):
         st=0
@@ -90,7 +88,7 @@ class Workers:
     def wait(self):
         for wrk in self._workers:
             wrk[1].join()
-            
+
     def destroy(self):
         self._OK = False
 
@@ -108,4 +106,3 @@ if __name__ == "__main__":
             time.sleep(0.1)
     except (KeyboardInterrupt, SystemExit):
         sb.destroy();
-

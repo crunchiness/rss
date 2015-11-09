@@ -20,7 +20,7 @@ class IOTools:
 
         # Camera
         self._openCam=False
-        
+
         # Motor Control
         self._snMot=-1
         self._openMot=False
@@ -32,14 +32,14 @@ class IOTools:
         self._openSer=False
         self._attachedSer=False
         self._limits = [0, 0]
-        
+
         # IF Kit
         self._snIF=-1
         self._openIF=False
-        self._attachedIF=False        
+        self._attachedIF=False
         self._inp = [0, 0, 0, 0, 0, 0, 0, 0]
         self._sen = [0, 0, 0, 0, 0, 0, 0, 0]
-        
+
         # LEDs
         self._fistTime = True
         self._status = [0,0,0]
@@ -73,7 +73,7 @@ class IOTools:
         self.__openCam()
 
 ###################### Camera ######################
-        
+
     def __openCam(self):
         if not os.path.exists('/dev/video0'):
             return False
@@ -119,7 +119,7 @@ class IOTools:
             else:
                 cv2.imshow(wnd,img)
                 cv2.waitKey(5)
-        
+
 ####################### Servo ######################
 
     def __openSer(self):
@@ -127,7 +127,7 @@ class IOTools:
             self._advancedServo = AdvancedServo()
         except RuntimeError as e:
             print("Servo - Runtime Exception: %s" % e.details)
-            return False        
+            return False
 
         try:
             self._advancedServo.setOnAttachHandler(self.__onAttachedSer)
@@ -136,7 +136,7 @@ class IOTools:
         except PhidgetException as e:
             print("Servo - Phidget Exception %i: %s" % (e.code, e.details))
             return False
-        
+
         try:
             self._advancedServo.openPhidget()
         except PhidgetException as e:
@@ -159,7 +159,7 @@ class IOTools:
         print("Servo %i Detached!" % (self._snSer))
         self._snSer = -1
         self._attachedSer=False
-              
+
     def __onErrorSer(self, e):
         try:
             source = e.device
@@ -183,7 +183,7 @@ class IOTools:
     def servoSet(self, pos):
         if self._attachedSer==True:
             self._advancedServo.setPosition(0, min(max(pos,self._limits[0]),self._limits[1]))
-        
+
 ############### Motor Control ######################
 
     def __openMot(self):
@@ -191,7 +191,7 @@ class IOTools:
             self._motorControl = MotorControl()
         except RuntimeError as e:
             print("Motor Control - Runtime Exception: %s" % e.details)
-            return False        
+            return False
 
         try:
             self._motorControl.setOnAttachHandler(self.__onAttachedMot)
@@ -201,7 +201,7 @@ class IOTools:
         except PhidgetException as e:
             print("Motor Control - Phidget Exception %i: %s" % (e.code, e.details))
             return False
-        
+
         try:
             self._motorControl.openPhidget()
         except PhidgetException as e:
@@ -219,7 +219,7 @@ class IOTools:
         print("Motor Control %i Detached!" % (self._snMot))
         self._snMot = -1
         self._attachedMot=False
-              
+
     def __onErrorMot(self, e):
         try:
             source = e.device
@@ -240,13 +240,13 @@ class IOTools:
             self._motorControl.setVelocity(0, speed1)
             self._motorControl.setAcceleration(1, acceleration2)
             self._motorControl.setVelocity(1, speed2)
-            
+
 ############### Interface Kit ######################
 
     def __closeIF(self):
         if self._openIF==True:
             self._interfaceKit.closePhidget()
-            
+
     def __openIF(self):
         try:
             self._interfaceKit = InterfaceKit()
@@ -269,7 +269,7 @@ class IOTools:
             return False
         self._openIF=True
         return True
-        
+
     def __onAttachedIF(self,e):
         self._snIF = e.device.getSerialNum()
         print("InterfaceKit %i Attached!" % (self._snIF))
@@ -292,7 +292,7 @@ class IOTools:
         self._inp = [0, 0, 0, 0, 0, 0, 0, 0]
         self._sen = [0, 0, 0, 0, 0, 0, 0, 0]
         self._attachedIF=False
-              
+
     def __onErrorIF(self, e):
         try:
             source = e.device
@@ -324,7 +324,7 @@ class IOTools:
                 if self._attachedIF:
                     self._interfaceKit.setOutputState(i, self._status[i])
             time.sleep(0.15)
-            
+
     def __setModeLED(self, i, mode, hz=2, cnt=1, ofs=0):
         if mode=='on':
             self._rep[i]=-1
@@ -344,12 +344,11 @@ class IOTools:
             self._mod[i]=hz
 
     def setStatus(self, mode, hz=2, cnt=1, ofs=0):
-        self.__setModeLED(1,mode, hz, cnt, ofs)            
-                
+        self.__setModeLED(1,mode, hz, cnt, ofs)
+
     def setError(self, mode, hz=2, cnt=1, ofs=0):
         self.__setModeLED(2,mode, hz, cnt, ofs)
 
     def setSemaphor(self):
         self.__setModeLED(1,'flash', 2, 6, 0)
         self.__setModeLED(2,'flash', 2, 6, 1)
-
