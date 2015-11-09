@@ -13,3 +13,5 @@ Very quick instructions of how:
 `deactivate` to exit virtualenv.
 
 Benefits are that you won't be accidentally using some random libraries from your machine, but only what we are supposed to use. Also you won't need to litter your system with libraries you will never use outside this project.
+
+To upload files run ./upload.sh (don't enter anything when prompted). Copies toddler.py and robot/
