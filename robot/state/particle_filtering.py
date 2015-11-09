@@ -52,6 +52,8 @@ KLD_BIN_SIZE = 8
 KLD_NUMBER_OF_ANGLES = 8
 KLD_MAX_PARTICLES = 10000
 
+ESS_THRESHOLD = 0.9
+
 DISTANCE_TO_CLOSEST_WALL_FILE = make_file_path('rss/robot/data/') + 'closest_distances.npy'
 if os.path.exists(DISTANCE_TO_CLOSEST_WALL_FILE):
     DISTANCE_TO_CLOSEST_WALL = np.load(DISTANCE_TO_CLOSEST_WALL_FILE).astype(np.uint8)
@@ -314,7 +316,7 @@ class Particles:
     def resample(self):
         ess = 1/np.sum(np.power(self.weights, 2))
         print ess
-        if ess > self.N/2:
+        if ess > self.N * ESS_THRESHOLD:
             return
 
         self.resample_KLD()
@@ -476,13 +478,13 @@ class Particles:
         try:
             temp = RAYCASTING_DISTANCES[x][y][orientation]
         except IndexError:
-            log('Trying to query RAYCASTING_DISTANCES x={} y={} angle={}'.format(x, y, orientation))
+            log('Failed to query RAYCASTING_DISTANCES x={} y={} angle={}'.format(x, y, orientation))
 
         try:
             distances['IR_left'] = temp[0]
             distances['IR_right'] = temp[1]
         except TypeError:
-            log('Trying to get distances x={} y={} angle={} temp={}'.format(x, y, orientation, temp))
+            log('Failed to get distances x={} y={} angle={} temp={}'.format(x, y, orientation, temp))
 
         return distances
 
