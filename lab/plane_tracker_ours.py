@@ -13,14 +13,19 @@ flann_params = {
 
 class CubeDetector:
     def __init__(self):
-        self.detector = cv2.ORB(nfeatures=1000)
+        self.detector = cv2.ORB_create(nfeatures=1000)
         self.matcher = cv2.FlannBasedMatcher(flann_params, {})
-
-        # zoidberg is the target
         self.zoidberg = self.load_zoidberg()
-
-        # TODO review
         self.matcher.add([self.zoidberg['descriptors']])
+
+    def load_zoidberg(self):
+        image = cv2.imread('images/zoidberg_model_small.png')
+        # finds 1000 key points and descriptors
+        keypoints, descrs = self.detector.detectAndCompute(image, None)
+        return {
+            'keypoints': keypoints,
+            'descriptors': descrs
+        }
 
     def detect_features(self, frame):
         """wrapper for detector.detectAndCompute"""
@@ -28,14 +33,6 @@ class CubeDetector:
         if descriptors is None:
             descriptors = []
         return keypoints, descriptors
-
-    def load_zoidberg(self):
-        image = cv2.imread('images/zoidberg.png')
-        keypoints, descrs = self.detector.detectAndCompute(image, None)
-        return {
-            'keypoints': keypoints,
-            'descriptors': descrs
-        }
 
     def find_possible_rects(self):
         """
@@ -56,13 +53,13 @@ class CubeDetector:
         # find 2 matches for every point, save one with smaller distance
         # TODO: check what the distance actually means, and what properties does a match have
         matches = []
-        for m in self.matcher.knnMatch(frame_descrs, k=2):
+        for m in self.matcher.knnMatch(frame_descrs, self.zoidberg['descriptors'], k=2):
             if len(m) == 2:
                 x = m[0] if m[0].distance < m[1].distance else m[1]
                 matches.append(x)
             elif len(m) == 1:
                 matches.append(m[0])
-
+        # print len(matches), 'matches'
         # no matching points -> no matching cubes
         if len(matches) < MIN_MATCH_COUNT:
             return []
@@ -70,25 +67,23 @@ class CubeDetector:
         cubes = []
         for rect in self.find_possible_rects():
 
-            # TODO: what are match properties, trainIdx? queryIdx?
-            p0 = [self.zoidberg['keypoints'][m.trainIdx].pt for m in matches]
-            p1 = [frame_points[m.queryIdx].pt for m in matches]
+            # for match in matches:
+            #     print 'q', match.queryIdx, 't', match.trainIdx
 
-            # TODO: why?
-            p0, p1 = np.float32((p0, p1))
+            model_points = [self.zoidberg['keypoints'][m.trainIdx].pt for m in matches]
+            real_points = [frame_points[m.queryIdx].pt for m in matches]
 
-            # TODO: what does this mean
-            H, status = cv2.findHomography(p0, p1, cv2.RANSAC, 3.0)
+            model_points, real_points = np.float32((model_points, real_points))
+
+            H, status = cv2.findHomography(model_points, real_points, cv2.RANSAC, 3.0)
             if status is None:
                 return []
 
-            # TODO: and this
             status = status.ravel() != 0
             if status.sum() < MIN_MATCH_COUNT:
                 return []
 
-            # TODO: and this
-            p0, p1 = p0[status], p1[status]
+            model_points, real_points = model_points[status], real_points[status]
 
             x0, y0, x1, y1 = rect
             quad = np.float32([[x0, y0], [x1, y0], [x1, y1], [x0, y1]])
@@ -96,8 +91,8 @@ class CubeDetector:
 
             track = {
                 'target': self.zoidberg,
-                'p0': p0,
-                'p1': p1,
+                'p0': model_points,
+                'p1': real_points,
                 'H': H,
                 'quad': quad
             }
@@ -108,13 +103,23 @@ class CubeDetector:
 
 
 a = CubeDetector()
-frame = cv2.imread('images/zoidberg.png')
-tracked = a.detect_cube(frame)
+
+cap = cv2.VideoCapture(2)
+while True:
+    ret, frame = cap.read()
+    tracked = a.detect_cube(frame)
+    print 'detected {} cubes'.format(len(tracked))
+
+    for tr in tracked:
+        cv2.polylines(frame, [np.int32(tr['quad'])], True, (0, 0, 255), 2)
+        for (x, y) in np.int32(tr['p1']):
+            cv2.circle(frame, (x, y), 2, (0, 255, 0))
+
+    cv2.imshow('plane', frame)
+    cv2.waitKey(20)
 
 
-for tr in tracked:
-    cv2.polylines(frame, [np.int32(tr['quad'])], True, (255, 255, 255), 2)
-    for (x, y) in np.int32(tr['p1']):
-        cv2.circle(frame, (x, y), 2, (255, 255, 255))
+# frame = cv2.imread('images/watching.png')
+# frame = cv2.imread('images/zoidberg.png')
+# frame = cv2.imread('images/zoidberg_test_upside_down.png')
 
-cv2.imshow('plane', frame)
