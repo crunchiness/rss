@@ -9,6 +9,7 @@ import time
 
 def make_file_path(path=None):
     base_path = os.path.dirname(os.path.dirname(os.path.realpath('__file__')))
+    base_path += '/student'
     path = base_path + '/log/' if path is None else base_path + '/' + path
     if not os.path.exists(path):
         os.makedirs(path)
@@ -181,7 +182,7 @@ def determine_room(x, y):
             return 'F'
 
 def log(text):
-    print (datetime.datetime.now().strftime('%H:%M:%S') + ' - ' + text)
+    print (datetime.datetime.now().strftime('%H:%M:%S') + ' - ' + str(text))
 
 def collect_front_IR_and_sonar_measurements(io, ok):
     sensors = Sensors(io)

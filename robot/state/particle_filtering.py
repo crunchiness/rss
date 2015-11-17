@@ -12,8 +12,9 @@ import utils
 from robot.utils import make_file_path, log
 
 ROTATION_STD_ABS = (10.0 / 360.0) * 2.0 * math.pi
-DRIFT_ROTATION_STD_ABS = (5.0 / 360.0) * 2.0 * math.pi
-FORWARD_STD_FRAC = 0.15
+ROTATION_STD_FRAC = 0.25
+DRIFT_ROTATION_STD_ABS = (10.0 / 360.0) * 2.0 * math.pi
+FORWARD_STD_FRAC = 0.25
 
 BUFFER_ZONE_FROM_WALLS = 22
 
@@ -54,14 +55,14 @@ KLD_MAX_PARTICLES = 10000
 
 ESS_THRESHOLD = 0.9
 
-DISTANCE_TO_CLOSEST_WALL_FILE = make_file_path('rss/robot/data/') + 'closest_distances.npy'
+DISTANCE_TO_CLOSEST_WALL_FILE = make_file_path('robot/data/') + 'closest_distances.npy'
 if os.path.exists(DISTANCE_TO_CLOSEST_WALL_FILE):
     DISTANCE_TO_CLOSEST_WALL = np.load(DISTANCE_TO_CLOSEST_WALL_FILE).astype(np.uint8)
 else:
     log('Couldnt find DISTANCE_TO_CLOSEST_WALL_FILE: {}'.format(str(DISTANCE_TO_CLOSEST_WALL_FILE)))
 
 RAYCASTING_DISTANCES = None
-RAYCASTING_DISTANCES_FILE = make_file_path('rss/robot/data/') + 'raycasting_distances_bin2.npy'
+RAYCASTING_DISTANCES_FILE = make_file_path('robot/data/') + 'raycasting_distances_SIZE_BIN_4.npy'
 if os.path.exists(RAYCASTING_DISTANCES_FILE):
     RAYCASTING_DISTANCES = np.load(RAYCASTING_DISTANCES_FILE).astype(np.uint8)
 else:
@@ -238,9 +239,9 @@ class Particles:
                 np.add(
                     np.multiply(
                         np.random.normal(size=self.N),
-                        ROTATION_STD_ABS
+                        ROTATION_STD_FRAC*rotation
                     ),
-                    -0.5 * ROTATION_STD_ABS + rotation
+                    -0.5 * ROTATION_STD_FRAC*rotation + rotation
                 )
             ),
             2.0 * pi)\
@@ -292,6 +293,7 @@ class Particles:
         self.forward(-distance)
 
     def sense(self, measurement):
+        log(measurement)
         """Sensing"""
         probabilities = np.zeros(self.N, dtype=np.float32)
         for i in xrange(self.N):
@@ -429,8 +431,8 @@ class Particles:
         :return: measurement predictions
         """
         #TODO reverse
-        # if RAYCASTING_DISTANCES is not None:
-        #     return Particles.measurement_prediction_from_cache(location, orientation)
+        if RAYCASTING_DISTANCES is not None:
+            return Particles.measurement_prediction_from_cache(location, orientation)
 
         beam_IR_left = utils.at_orientation([0, MAX_BEAM_RANGE],
                                           orientation + SENSORS_LOCATIONS['IR_left']['orientation'])
@@ -465,7 +467,7 @@ class Particles:
                     if distance < minimum_distance:
                         minimum_distance = distance
             distances[label] = minimum_distance
-        print("{} {} {}".format(location, orientation, distances))
+        # print("{} {} {}".format(location, orientation, distances))
         return distances
 
     @staticmethod
@@ -474,8 +476,8 @@ class Particles:
         x = int(location[0] / SIZE_OF_BINS)
         y = int(location[1] / SIZE_OF_BINS)
 
-        x = min(x, X_MAX/SIZE_OF_BINS-1)
-        y = min(y, Y_MAX/SIZE_OF_BINS-1)
+        x = min(x, int(X_MAX/SIZE_OF_BINS)-1)
+        y = min(y, int(Y_MAX/SIZE_OF_BINS)-1)
 
         increment = 2.0*pi/NUMBER_OF_ANGLES
         orientation = int(((orientation + 0.5*increment) % (2.0 * pi)) / increment)
@@ -490,6 +492,7 @@ class Particles:
         try:
             distances['IR_left'] = temp[0]
             distances['IR_right'] = temp[1]
+            distances['sonar'] = temp[2]
         except TypeError:
             log('Failed to get distances x={} y={} angle={} temp={}'.format(x, y, orientation, temp))
 
@@ -512,10 +515,11 @@ class Particles:
         :return: probability of measurements
         """
 
-        weights = np.array([1, 1], dtype=np.float32)
+        weights = np.array([1, 1, 0.3], dtype=np.float32)
         weights = weights/np.sum(weights)
         probabilities = np.array([self.measurement_prob_ir(measurements['IR_left'], predictions['IR_left']),
-                                  self.measurement_prob_ir(measurements['IR_right'], predictions['IR_right'])],
+                                  self.measurement_prob_ir(measurements['IR_right'], predictions['IR_right']),
+                                  self.measurement_prob_sonar(measurements['sonar'], predictions['sonar'])],
                                  dtype=np.float32)
         probability = np.dot(weights, probabilities)
 

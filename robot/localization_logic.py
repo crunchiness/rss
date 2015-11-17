@@ -80,39 +80,46 @@ class RoomBelief:
         return max_prob_room
 
 
-def wander(sensors, particles, motors, front_ir, right_ir, state, vision):
+def wander(sensors, particles, motors, front_ir, right_ir, sonar, state, vision):
     """Loop for when we are unsure of our location at all
     """
 
     log('Starting wandering mode')
 
-    x, y, o, xy_conf = particles.get_position_by_weighted_average()
+    #TODO HACK
+    x, y, o = particles.get_position_by_weighted_average()
+    xy_conf = 0.3
     while xy_conf < LOCALISATION_CONF:
 
         # localization - driving around avoiding obstacles
         front_avg = front_ir.get_avg()
         right_avg = right_ir.get_avg()
-        while front_avg > 20 and right_avg > 15:
+        log('{} {}'.format(front_avg, right_avg))
+        while front_avg > 15 and right_avg > 15:
 
             # Move forwards 10 cm
             motors.go_forward(10)
             particles.forward(10)
 
-            state['room_belief'].update_belief(vision.belief)
+            #state['room_belief'].update_belief(vision.belief)
 
             # Update position via particle filter
             front_ir_reading = sensors.get_ir_front()
             right_ir_reading = sensors.get_ir_right()
+            sonar_reading = sensors.get_sonar()
             front_ir.add_value(front_ir_reading)
             right_ir.add_value(right_ir_reading)
-            front_avg = front_ir.get_avg()
-            right_avg = right_ir.get_avg()
+            sonar.add_value(sonar_reading)
             particles.sense({
                 'IR_left': front_ir_reading if front_ir_reading is not None else 0,
                 'IR_right': right_ir_reading if right_ir_reading is not None else 0,
+                'sonar': sonar_reading if sonar_reading is not None else 0,
             })
-            x, y, o, xy_conf = particles.get_position_by_weighted_average()
+            #TODO hack
+            x, y, o = particles.get_position_by_weighted_average()
+            xy_conf = 0.3
             particles.resample()
+            log(particles.get_position_by_weighted_average())
 
             # we are sure enough, go back to high level plan execution
             if xy_conf >= LOCALISATION_CONF:
@@ -175,33 +182,38 @@ def travel(sensors, particles, motors, state, vision):
                 return
 
 
-def look_around(motors, sensors, front_ir, right_ir, particles, state, vision):
+def look_around(motors, sensors, front_ir, right_ir, sonar, particles, state, vision):
 
     log('Starting look_around')
 
-    n = 12
+    n = 5
     for i in xrange(n):
         motors.turn_by(360 / n)
         particles.rotate(2 * np.pi / n)
         front_ir_reading = sensors.get_ir_front()
         right_ir_reading = sensors.get_ir_right()
+        sonar_reading = sensors.get_sonar()
         front_ir.add_value(front_ir_reading)
         right_ir.add_value(right_ir_reading)
+        sonar.add_value(sonar_reading)
         particles.sense({
             'IR_left': front_ir_reading if front_ir_reading is not None else 0,
             'IR_right': right_ir_reading if right_ir_reading is not None else 0,
+            'sonar': sonar_reading if sonar_reading is not None else 0,
         })
         particles.resample()
-        state['room_belief'].update_belief(vision.belief)
+        x, y, o = particles.get_position_by_weighted_average()
+        log(particles.measurement_prediction_explicit(np.array([x, y]), o))
+        #state['room_belief'].update_belief(vision.belief)
 
-    start_room = state['room_belief'].get_belief(basic_start=False)
+    #start_room = state['room_belief'].get_belief(basic_start=False)
 
-    log('Start room identified as ' + start_room)
-
-    f = open('start_room.txt', 'w')
-    f.write(start_room)
-    f.close()
-    state['mode'] = 'travelling'
+    # log('Start room identified as ' + start_room)
+    #
+    # f = open('start_room.txt', 'w')
+    # f.write(start_room)
+    # f.close()
+    state['mode'] = 'wandering'
 
 
 def wander_and_travel(sensors, particles, motors, vision):
@@ -220,16 +232,20 @@ def wander_and_travel(sensors, particles, motors, vision):
     }
     front_ir = SensorRunningAverage()
     right_ir = SensorRunningAverage()
+    sonar = SensorRunningAverage()
+
+    x, y, o = particles.get_position_by_weighted_average()
+    log(particles.measurement_prediction_explicit(np.array([x, y]), o))
 
     while True:
         if state['mode'] == 'starting':
-            print 'Looking around'
-            look_around(motors, sensors, front_ir, right_ir, particles, state, vision)
+            log('Looking around')
+            look_around(motors, sensors, front_ir, right_ir, sonar, particles, state, vision)
         elif state['mode'] == 'wandering':
-            print 'Wandering'
-            wander(sensors, particles, motors, front_ir, right_ir, state, vision)
+            log('Wandering')
+            wander(sensors, particles, motors, front_ir, right_ir, sonar, state, vision)
         elif state['mode'] == 'travelling':
-            print 'Travelling'
+            log('Travelling')
             travel(sensors, particles, motors, state, vision)
         else:
             raise Exception('Unknown state {0}'.format(state['mode']))

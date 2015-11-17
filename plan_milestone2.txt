@@ -9,3 +9,5 @@
 todo:
 better sensor placement to avoid obstacles
 
+notes_adam:
+1. initialize particles at given location and orientation
