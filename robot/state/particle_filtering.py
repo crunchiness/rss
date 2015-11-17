@@ -512,10 +512,11 @@ class Particles:
         :return: probability of measurements
         """
 
-        weights = np.array([1, 1], dtype=np.float32)
+        weights = np.array([1, 1, 1], dtype=np.float32)
         weights = weights/np.sum(weights)
         probabilities = np.array([self.measurement_prob_ir(measurements['IR_left'], predictions['IR_left']),
-                                  self.measurement_prob_ir(measurements['IR_right'], predictions['IR_right'])],
+                                  self.measurement_prob_ir(measurements['IR_right'], predictions['IR_right']),
+                                  self.measurement_prob_sonar(measurements['sonar'], predictions['sonar'])],
                                  dtype=np.float32)
         probability = np.dot(weights, probabilities)
 
