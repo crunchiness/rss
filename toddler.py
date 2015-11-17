@@ -21,7 +21,7 @@ class Toddler:
         self.motors = Motors(io)
         self.sensors = Sensors(io)
         self.vision = Vision(io)
-        self.particles = Particles(n=1200, drawing=Drawing())
+        self.particles = Particles(n=1000, where='1base', drawing=Drawing())
 
     def stop(self):
         """For development only"""
@@ -33,8 +33,8 @@ class Toddler:
     def Control(self, ok):
         while ok():
             # perform_basic_milestone(self.sensors, self.motors)
-            # wander_and_travel(self.sensors, self.particles, self.motors, self.vision)
-            collect_front_IR_and_sonar_measurements(self.io)
+            wander_and_travel(self.sensors, self.particles, self.motors, self.vision)
+            # collect_front_IR_and_sonar_measurements(self.io)
 
     # This is a callback that will be called repeatedly.
     # It has its dedicated thread so you can keep block it.

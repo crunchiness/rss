@@ -11,13 +11,13 @@ from robot.state.map import X_MAX, Y_MAX, ARENA_WALLS
 import utils
 from robot.utils import make_file_path, log
 
-ROTATION_STD_ABS = (10.0 / 360.0) * 2.0 * math.pi
-DRIFT_ROTATION_STD_ABS = (5.0 / 360.0) * 2.0 * math.pi
-FORWARD_STD_FRAC = 0.15
+ROTATION_STD_ABS = (15.0 / 360.0) * 2.0 * math.pi
+DRIFT_ROTATION_STD_ABS = (10.0 / 360.0) * 2.0 * math.pi
+FORWARD_STD_FRAC = 0.25
 
 BUFFER_ZONE_FROM_WALLS = 22
 
-SIZE_OF_BINS = 8
+SIZE_OF_BINS = 4
 NUMBER_OF_ANGLES = 256
 
 # edge r to r+s, tuples in the (r, s) format, not (r, r+s)
@@ -54,14 +54,14 @@ KLD_MAX_PARTICLES = 10000
 
 ESS_THRESHOLD = 0.9
 
-DISTANCE_TO_CLOSEST_WALL_FILE = make_file_path('rss/robot/data/') + 'closest_distances.npy'
+DISTANCE_TO_CLOSEST_WALL_FILE = make_file_path('robot/data/') + 'closest_distances.npy'
 if os.path.exists(DISTANCE_TO_CLOSEST_WALL_FILE):
     DISTANCE_TO_CLOSEST_WALL = np.load(DISTANCE_TO_CLOSEST_WALL_FILE).astype(np.uint8)
 else:
     log('Couldnt find DISTANCE_TO_CLOSEST_WALL_FILE: {}'.format(str(DISTANCE_TO_CLOSEST_WALL_FILE)))
 
 RAYCASTING_DISTANCES = None
-RAYCASTING_DISTANCES_FILE = make_file_path('rss/robot/data/') + 'raycasting_distances_SIZE_BIN_8.npy'
+RAYCASTING_DISTANCES_FILE = make_file_path('robot/data/') + 'raycasting_distances_SIZE_BIN_4.npy'
 if os.path.exists(RAYCASTING_DISTANCES_FILE):
     RAYCASTING_DISTANCES = np.load(RAYCASTING_DISTANCES_FILE).astype(np.uint8)
 else:

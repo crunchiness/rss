@@ -2,6 +2,7 @@ import datetime
 import cv2
 import numpy as np
 import robot.utils as utils
+from robot.utils import log
 
 from robot.state.map import X_MAX, Y_MAX, ARENA_WALLS
 
@@ -38,5 +39,5 @@ class Drawing:
         path = utils.make_file_path(path)
         result = cv2.imwrite(path + name, cv2.flip(self.image, 1))
         if not result:
-            print 'Failed to save image: ' + path + name
+            log('Failed to save image: ' + path + name)
         self.image = np.copy(self.template)
