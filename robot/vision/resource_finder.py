@@ -1,3 +1,4 @@
+import os
 import cv2
 import numpy as np
 
@@ -20,11 +21,12 @@ class CubeDetector:
 
     def init_matcher(self):
         matcher = cv2.FlannBasedMatcher(flann_params, {})
-        matcher.add([self.model['descriptors']])
+        # matcher.add()
         return matcher
 
     def load_cube_model(self):
-        model_img = cv2.imread('small_models/{}.png'.format(self.which))
+        base_path = os.path.dirname(os.path.dirname(os.path.realpath('__file__'))) + '/'
+        model_img = cv2.imread(base_path + 'robot/vision/small_models/{}.png'.format(self.which))
         features = self.detect_features(model_img)
         return {
             'keypoints': features[0],
@@ -45,11 +47,14 @@ class CubeDetector:
         if len(frame_points) < MIN_MATCH_COUNT:
             return None
 
-        # find 2 matches for every point, save one with smaller distance
-        matches = []
-        for m in self.matcher.knnMatch(frame_descrs, self.model['descriptors'], k=1):
-            if len(m) == 1:
-                matches.append(m[0])
+        # f = np.asarray(frame_descrs, np.float32)
+        # m = np.asarray(self.model['descriptors'], np.float32)
+        # print len(f), len(m)
+        matches = self.matcher.knnMatch(frame_descrs, self.model['descriptors'], k=2)
+
+        # Lowe's ratio test
+        matches = [m[0] for m in matches if len(m) == 2 and m[0].distance < m[1].distance * 0.8]
+
         # no matching points -> no matching cubes
         if len(matches) < MIN_MATCH_COUNT:
             return None
@@ -80,19 +85,3 @@ class CubeDetector:
 
 def get_mean(detection):
     return tuple(np.mean(detection['p1'], 0))
-
-a = CubeDetector('zoidberg')
-
-cap = cv2.VideoCapture(1)
-while True:
-    ret, frame = cap.read()
-    detection = a.detect_cube(frame)
-    if detection is None:
-        continue
-    cv2.circle(frame, get_mean(detection), 3, (255, 0, 0))
-    for (x, y) in np.int32(detection['p1']):
-        cv2.circle(frame, (x, y), 2, (0, 255, 0))
-
-    cv2.imshow('PlaneTracker', frame)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break

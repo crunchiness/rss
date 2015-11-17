@@ -51,7 +51,7 @@ KLD_Z_DELTA = 2.23 # for delta = 0.1
 KLD_EPSILON = 0.05
 KLD_BIN_SIZE = 8
 KLD_NUMBER_OF_ANGLES = 8
-KLD_MAX_PARTICLES = 10000
+KLD_MAX_PARTICLES = 1000
 
 ESS_THRESHOLD = 0.9
 
@@ -62,7 +62,7 @@ else:
     log('Couldnt find DISTANCE_TO_CLOSEST_WALL_FILE: {}'.format(str(DISTANCE_TO_CLOSEST_WALL_FILE)))
 
 RAYCASTING_DISTANCES = None
-RAYCASTING_DISTANCES_FILE = make_file_path('robot/data/') + 'raycasting_distances_SIZE_BIN_4.npy'
+RAYCASTING_DISTANCES_FILE = make_file_path('robot/data/') + 'raycasting_distances_bin2.npy'
 if os.path.exists(RAYCASTING_DISTANCES_FILE):
     RAYCASTING_DISTANCES = np.load(RAYCASTING_DISTANCES_FILE).astype(np.uint8)
 else:
@@ -316,6 +316,7 @@ class Particles:
         return False
 
     def resample(self):
+        log('Resampling...')
         ess = 1/np.sum(np.power(self.weights, 2))
         # print ess
         if ess > self.N * ESS_THRESHOLD:
