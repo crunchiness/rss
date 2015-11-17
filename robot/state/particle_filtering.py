@@ -465,7 +465,7 @@ class Particles:
                     if distance < minimum_distance:
                         minimum_distance = distance
             distances[label] = minimum_distance
-        print("{} {} {}".format(location, orientation, distances))
+        # print("{} {} {}".format(location, orientation, distances))
         return distances
 
     @staticmethod
