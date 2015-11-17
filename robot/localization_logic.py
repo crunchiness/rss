@@ -202,7 +202,8 @@ def look_around(motors, sensors, front_ir, right_ir, sonar, particles, state, vi
             'sonar': sonar_reading if sonar_reading is not None else 0,
         })
         particles.resample()
-        log(particles.get_position_by_weighted_average())
+        x, y, o = particles.get_position_by_weighted_average()
+        log(particles.measurement_prediction_explicit(np.array([x, y]), o))
         #state['room_belief'].update_belief(vision.belief)
 
     #start_room = state['room_belief'].get_belief(basic_start=False)
@@ -233,7 +234,8 @@ def wander_and_travel(sensors, particles, motors, vision):
     right_ir = SensorRunningAverage()
     sonar = SensorRunningAverage()
 
-    log(particles.get_position_by_weighted_average())
+    x, y, o = particles.get_position_by_weighted_average()
+    log(particles.measurement_prediction_explicit(np.array([x, y]), o))
 
     while True:
         if state['mode'] == 'starting':

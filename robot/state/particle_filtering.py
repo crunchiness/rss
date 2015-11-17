@@ -11,13 +11,14 @@ from robot.state.map import X_MAX, Y_MAX, ARENA_WALLS
 import utils
 from robot.utils import make_file_path, log
 
-ROTATION_STD_ABS = (15.0 / 360.0) * 2.0 * math.pi
+ROTATION_STD_ABS = (10.0 / 360.0) * 2.0 * math.pi
+ROTATION_STD_FRAC = 0.25
 DRIFT_ROTATION_STD_ABS = (10.0 / 360.0) * 2.0 * math.pi
 FORWARD_STD_FRAC = 0.25
 
 BUFFER_ZONE_FROM_WALLS = 22
 
-SIZE_OF_BINS = 4
+SIZE_OF_BINS = 2
 NUMBER_OF_ANGLES = 256
 
 # edge r to r+s, tuples in the (r, s) format, not (r, r+s)
@@ -238,9 +239,9 @@ class Particles:
                 np.add(
                     np.multiply(
                         np.random.normal(size=self.N),
-                        ROTATION_STD_ABS
+                        ROTATION_STD_FRAC*rotation
                     ),
-                    -0.5 * ROTATION_STD_ABS + rotation
+                    -0.5 * ROTATION_STD_FRAC*rotation + rotation
                 )
             ),
             2.0 * pi)\
@@ -292,6 +293,7 @@ class Particles:
         self.forward(-distance)
 
     def sense(self, measurement):
+        log(measurement)
         """Sensing"""
         probabilities = np.zeros(self.N, dtype=np.float32)
         for i in xrange(self.N):
@@ -474,8 +476,8 @@ class Particles:
         x = int(location[0] / SIZE_OF_BINS)
         y = int(location[1] / SIZE_OF_BINS)
 
-        x = min(x, X_MAX/SIZE_OF_BINS-1)
-        y = min(y, Y_MAX/SIZE_OF_BINS-1)
+        x = min(x, int(X_MAX/SIZE_OF_BINS)-1)
+        y = min(y, int(Y_MAX/SIZE_OF_BINS)-1)
 
         increment = 2.0*pi/NUMBER_OF_ANGLES
         orientation = int(((orientation + 0.5*increment) % (2.0 * pi)) / increment)
@@ -513,7 +515,7 @@ class Particles:
         :return: probability of measurements
         """
 
-        weights = np.array([1, 1, 1], dtype=np.float32)
+        weights = np.array([1, 1, 0.3], dtype=np.float32)
         weights = weights/np.sum(weights)
         probabilities = np.array([self.measurement_prob_ir(measurements['IR_left'], predictions['IR_left']),
                                   self.measurement_prob_ir(measurements['IR_right'], predictions['IR_right']),
