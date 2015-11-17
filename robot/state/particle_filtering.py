@@ -17,7 +17,7 @@ FORWARD_STD_FRAC = 0.15
 
 BUFFER_ZONE_FROM_WALLS = 22
 
-SIZE_OF_BINS = 2
+SIZE_OF_BINS = 8
 NUMBER_OF_ANGLES = 256
 
 # edge r to r+s, tuples in the (r, s) format, not (r, r+s)
@@ -61,7 +61,7 @@ else:
     log('Couldnt find DISTANCE_TO_CLOSEST_WALL_FILE: {}'.format(str(DISTANCE_TO_CLOSEST_WALL_FILE)))
 
 RAYCASTING_DISTANCES = None
-RAYCASTING_DISTANCES_FILE = make_file_path('rss/robot/data/') + 'raycasting_distances_bin2.npy'
+RAYCASTING_DISTANCES_FILE = make_file_path('rss/robot/data/') + 'raycasting_distances_SIZE_BIN_8.npy'
 if os.path.exists(RAYCASTING_DISTANCES_FILE):
     RAYCASTING_DISTANCES = np.load(RAYCASTING_DISTANCES_FILE).astype(np.uint8)
 else:
@@ -429,8 +429,8 @@ class Particles:
         :return: measurement predictions
         """
         #TODO reverse
-        # if RAYCASTING_DISTANCES is not None:
-        #     return Particles.measurement_prediction_from_cache(location, orientation)
+        if RAYCASTING_DISTANCES is not None:
+            return Particles.measurement_prediction_from_cache(location, orientation)
 
         beam_IR_left = utils.at_orientation([0, MAX_BEAM_RANGE],
                                           orientation + SENSORS_LOCATIONS['IR_left']['orientation'])
@@ -490,6 +490,7 @@ class Particles:
         try:
             distances['IR_left'] = temp[0]
             distances['IR_right'] = temp[1]
+            distances['sonar'] = temp[2]
         except TypeError:
             log('Failed to get distances x={} y={} angle={} temp={}'.format(x, y, orientation, temp))
 
