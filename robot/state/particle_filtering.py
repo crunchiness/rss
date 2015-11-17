@@ -22,16 +22,16 @@ NUMBER_OF_ANGLES = 256
 
 # edge r to r+s, tuples in the (r, s) format, not (r, r+s)
 ROBOT_EDGES = [
-    ([-11.0, -13.0], [0.0, 26.0]),
-    ([-11.0, 13.0], [32.0, 0.0]),
-    ([21.0, 13.0], [0.0, -26.0]),
-    ([21.0, -13.0], [-32.0, 0.0])
+    ([-13.0, -13.0], [  0.0,  37.0]),
+    ([-13.0,  24.0], [ 26.0,   0.0]),
+    ([ 13.0,  24.0], [  0.0, -37.0]),
+    ([ 13.0, -13.0], [-26.0,   0.0])
 ]
 
 SENSORS_LOCATIONS = {
-    'IR_left': {'location': [0.0, 21.0], 'orientation': 0.0},
-    'IR_right': {'location': [7.5, 15.0], 'orientation': pi / 2.0},
-    'sonar_front': {'location': [0.0, 21.0], 'orientation': 0.0},
+    'IR_left':  {'location': [-8.0, 23.0], 'orientation': 33.0/180.0*pi},
+    'IR_right': {'location': [ 8.0, 23.0], 'orientation': (360.0-33.0)/180.0*pi},
+    'sonar': {'location': [3.5, -13.0], 'orientation': pi},
 }
 
 MAX_BEAM_RANGE = math.sqrt(2.0 * ((5 * 106.5) ** 2))
@@ -315,7 +315,7 @@ class Particles:
 
     def resample(self):
         ess = 1/np.sum(np.power(self.weights, 2))
-        print ess
+        # print ess
         if ess > self.N * ESS_THRESHOLD:
             return
 
@@ -428,19 +428,24 @@ class Particles:
         Finds measurement predictions based on particle location.
         :return: measurement predictions
         """
+        #TODO reverse
+        # if RAYCASTING_DISTANCES is not None:
+        #     return Particles.measurement_prediction_from_cache(location, orientation)
 
-        if RAYCASTING_DISTANCES is not None:
-            return Particles.measurement_prediction_from_cache(location, orientation)
-
-        beam_front = utils.at_orientation([0, MAX_BEAM_RANGE],
+        beam_IR_left = utils.at_orientation([0, MAX_BEAM_RANGE],
                                           orientation + SENSORS_LOCATIONS['IR_left']['orientation'])
-        beam_right = utils.at_orientation([0, MAX_BEAM_RANGE],
+        beam_IR_right = utils.at_orientation([0, MAX_BEAM_RANGE],
                                           orientation + SENSORS_LOCATIONS['IR_right']['orientation'])
-        front = np.add(location,
+        beam_sonar = utils.at_orientation([0, MAX_BEAM_RANGE],
+                                          orientation + SENSORS_LOCATIONS['sonar']['orientation'])
+        IR_left = np.add(location,
                        utils.at_orientation(SENSORS_LOCATIONS['IR_left']['location'],
                                             orientation))
-        right = np.add(location,
+        IR_right = np.add(location,
                        utils.at_orientation(SENSORS_LOCATIONS['IR_right']['location'],
+                                            orientation))
+        sonar = np.add(location,
+                       utils.at_orientation(SENSORS_LOCATIONS['sonar']['location'],
                                             orientation))
 
         # print 'Robot: ' + str(self.location(i)[0]) + ' ' + str(self.location(i)[1]) + ' ' + str(self.orientation(i))
@@ -449,7 +454,9 @@ class Particles:
 
         # find distances along beams to the closest walls
         distances = {}
-        for sensor_location, beam, label in (front, beam_front, 'IR_left'), (right, beam_right, 'IR_right'):
+        for sensor_location, beam, label in (IR_left, beam_IR_left, 'IR_left'), \
+                                            (IR_right, beam_IR_right, 'IR_right'),\
+                                            (sonar, beam_sonar, 'sonar'):
             minimum_distance = MAX_BEAM_RANGE
             for wall in ARENA_WALLS:
                 intersection = utils.intersects_at(wall, (sensor_location, beam))
@@ -458,7 +465,7 @@ class Particles:
                     if distance < minimum_distance:
                         minimum_distance = distance
             distances[label] = minimum_distance
-
+        print("{} {} {}".format(location, orientation, distances))
         return distances
 
     @staticmethod
@@ -617,7 +624,7 @@ class Particles:
 
         angle_increment = 2.0 * pi / float(NUMBER_OF_ANGLES)
 
-        distances = np.zeros((xm, ym, NUMBER_OF_ANGLES, 2)).astype(np.uint8)
+        distances = np.zeros((xm, ym, NUMBER_OF_ANGLES, 3)).astype(np.uint8)
         for x in range(xmin, xmax):
             print(x)
             for y in xrange(ym):
@@ -627,6 +634,7 @@ class Particles:
                     temp = Particles.measurement_prediction_explicit(location, angle_number * angle_increment)
                     distances[x][y][angle_number][0] = temp['IR_left']
                     distances[x][y][angle_number][1] = temp['IR_right']
+                    distances[x][y][angle_number][2] = temp['sonar']
 
         return distances
 
