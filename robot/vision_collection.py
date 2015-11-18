@@ -14,7 +14,7 @@ def vision_collection(sensors, motors):
         # Move forwards 10 cm
         motors.go_forward(10)
 
-        front_ir_reading = sensors.get_ir_front()
+        front_ir_reading = sensors.get_ir_left()
         right_ir_reading = sensors.get_ir_right()
         front_avg = front_ir.get_avg()
         right_avg = right_ir.get_avg()
