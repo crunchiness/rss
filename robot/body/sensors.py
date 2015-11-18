@@ -5,6 +5,10 @@ Port mapping
 1: right IR sensor
 """
 
+import time
+
+SAMPLES = 5
+INTERVAL = 0.1
 
 def ir_input_to_distance(voltage):
     ir_max = 110
@@ -17,7 +21,7 @@ def ir_input_to_distance(voltage):
         value = return_max_value
     return value if value > 0 else return_max_value
 
-def sensor_input_to_distance(voltage):
+def sonar_input_to_distance(voltage):
     sensor_max = 640.0
     value = voltage * 1.296
     if value > sensor_max:
@@ -32,15 +36,20 @@ class Sensors:
     def get_analogue(self):
         self.analogue = self.io.getSensors()
 
-    def get_ir_front_raw(self):
+    def get_ir_left_raw(self):
         """
         :rtype : float
         """
         self.get_analogue()
         return self.analogue[0]
 
-    def get_ir_front(self):
-        return ir_input_to_distance(self.get_ir_front_raw())
+    def get_ir_left(self):
+        value = 0
+        for i in range(SAMPLES):
+            value += self.get_ir_left_raw()
+            time.sleep(INTERVAL)
+        value /= SAMPLES
+        return ir_input_to_distance(value)
 
     def get_ir_right_raw(self):
         """
@@ -50,7 +59,12 @@ class Sensors:
         return self.analogue[1]
 
     def get_ir_right(self):
-        return ir_input_to_distance(self.get_ir_right_raw())
+        value = 0
+        for i in range(SAMPLES):
+            value += self.get_ir_right_raw()
+            time.sleep(INTERVAL)
+        value /= SAMPLES
+        return ir_input_to_distance(value)
 
     def get_sonar_raw(self):
         """
@@ -63,19 +77,15 @@ class Sensors:
         """
         :rtype : float
         """
-        self.get_analogue()
-        return sensor_input_to_distance(self.analogue[2])
+        value = 0
+        for i in range(SAMPLES):
+            value += self.get_sonar_raw()
+            time.sleep(INTERVAL)
+        value /= SAMPLES
+        return sonar_input_to_distance(value)
 
-    def get_irs(self):
-        self.get_analogue()
-        return [ir_input_to_distance(self.analogue[0]),
-                ir_input_to_distance(self.analogue[1])]
-
-    def get_irs_and_sonar(self):
-        self.get_analogue()
-        return [ir_input_to_distance(self.analogue[0]),
-                ir_input_to_distance(self.analogue[1]),
-                sensor_input_to_distance(self.analogue[2])]
+    def get_hall_sensor(self):
+        return self.io.getInputs()[7]
 
 
 class SensorRunningAverage:

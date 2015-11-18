@@ -8,6 +8,8 @@ from robot.state.map import NODES
 
 from robot.utils import log
 
+from robot.body.motors import HALL_ANGLE, HALL_PERIMETER
+
 DESTINATION_ROOM = 'B'
 
 # When this is reached we are sure enough of our location
@@ -80,64 +82,58 @@ class RoomBelief:
         return max_prob_room
 
 
-def wander(sensors, particles, motors, front_ir, right_ir, sonar, state, vision):
+def wander(sensors, particles, motors, left_ir, right_ir, sonar, state, vision):
     """Loop for when we are unsure of our location at all
     """
 
     log('Starting wandering mode')
 
     #TODO HACK
-    x, y, o = particles.get_position_by_weighted_average()
+    x, y, o = particles.get_position_by_max_weight()
     xy_conf = 0.3
     while xy_conf < LOCALISATION_CONF:
 
         # localization - driving around avoiding obstacles
-        front_avg = front_ir.get_avg()
-        right_avg = right_ir.get_avg()
-        log('{} {}'.format(front_avg, right_avg))
-        while front_avg > 15 and right_avg > 15:
+        front_ir_reading = sensors.get_ir_left()
+        right_ir_reading = sensors.get_ir_right()
+        sonar_reading = sensors.get_sonar()
 
-            # Move forwards 10 cm
-            motors.go_forward(10)
-            particles.forward(10)
+        # Update position via particle filter
+        measurements = {
+            'IR_left': front_ir_reading if front_ir_reading is not None else 0,
+            'IR_right': right_ir_reading if right_ir_reading is not None else 0,
+            'sonar': sonar_reading if sonar_reading is not None else 0,
+        }
+
+        log('Measurement predictions: {}'
+        .format(particles.measurement_prediction_explicit(np.array([x, y]), o)))
+
+        particles.sense(measurements)
+        particles.resample()
+        x, y, o = particles.get_position_by_max_weight()
+
+        if front_ir_reading > 30 and right_ir_reading > 30:
+            # Move forwards 16.5 cm
+            log('Going {}cm forward'.format(3*HALL_PERIMETER))
+            motors.go_forward(3*HALL_PERIMETER)
+            particles.forward(3*HALL_PERIMETER)
 
             #state['room_belief'].update_belief(vision.belief)
 
-            # Update position via particle filter
-            front_ir_reading = sensors.get_ir_front()
-            right_ir_reading = sensors.get_ir_right()
-            sonar_reading = sensors.get_sonar()
-            front_ir.add_value(front_ir_reading)
-            right_ir.add_value(right_ir_reading)
-            sonar.add_value(sonar_reading)
-            particles.sense({
-                'IR_left': front_ir_reading if front_ir_reading is not None else 0,
-                'IR_right': right_ir_reading if right_ir_reading is not None else 0,
-                'sonar': sonar_reading if sonar_reading is not None else 0,
-            })
-            #TODO hack
-            x, y, o = particles.get_position_by_weighted_average()
-            xy_conf = 0.3
-            particles.resample()
-            log(particles.get_position_by_weighted_average())
-
             # we are sure enough, go back to high level plan execution
-            if xy_conf >= LOCALISATION_CONF:
-                log('Gained confidence while wandering, going into travelling mode')
-                state['mode'] = 'travelling'
-                return
+            # if xy_conf >= LOCALISATION_CONF:
+            #     log('Gained confidence while wandering, going into travelling mode')
+            #     state['mode'] = 'travelling'
+            #     return
 
-            # Update running average
-            front_ir.add_value(front_ir_reading)
-            right_ir.add_value(right_ir_reading)
-
-        if front_avg <= 15:
-            motors.turn_by(30)
-            particles.rotate(30. * np.pi / 180.)
-        elif right_avg <= 15:
-            motors.turn_by(-30)
-            particles.rotate(-30. * np.pi / 180.)
-
+        if front_ir_reading <= 30:
+            log('Turning {} angles left'.format(2*HALL_ANGLE))
+            motors.turn_by(-2*HALL_ANGLE)
+            particles.rotate(-2*HALL_ANGLE * np.pi / 180.)
+        elif right_ir_reading <= 30:
+            log('Turning {} angles right'.format(2*HALL_ANGLE))
+            motors.turn_by(2*HALL_ANGLE)
+            particles.rotate(2*HALL_ANGLE * np.pi / 180.)
 
 def travel(sensors, particles, motors, state, vision):
     """Loop for when we know what where we are, aka loop for travelling
@@ -166,7 +162,7 @@ def travel(sensors, particles, motors, state, vision):
             # keep sensing the world
             state['room_belief'].update_belief(vision.belief)
 
-            front_ir_reading = sensors.get_ir_front()
+            front_ir_reading = sensors.get_ir_left()
             right_ir_reading = sensors.get_ir_right()
             particles.sense({
                 'IR_left': front_ir_reading,
@@ -186,24 +182,29 @@ def look_around(motors, sensors, front_ir, right_ir, sonar, particles, state, vi
 
     log('Starting look_around')
 
-    n = 5
+    multiple = 2.0
+
+    n = int(360/(multiple*HALL_ANGLE))
     for i in xrange(n):
-        motors.turn_by(360 / n)
-        particles.rotate(2 * np.pi / n)
-        front_ir_reading = sensors.get_ir_front()
+        motors.turn_by((multiple*HALL_ANGLE))
+        particles.rotate((multiple*HALL_ANGLE)/180. * np.pi)
+        front_ir_reading = sensors.get_ir_left()
         right_ir_reading = sensors.get_ir_right()
         sonar_reading = sensors.get_sonar()
-        front_ir.add_value(front_ir_reading)
-        right_ir.add_value(right_ir_reading)
-        sonar.add_value(sonar_reading)
-        particles.sense({
+
+        measurements = {
             'IR_left': front_ir_reading if front_ir_reading is not None else 0,
             'IR_right': right_ir_reading if right_ir_reading is not None else 0,
             'sonar': sonar_reading if sonar_reading is not None else 0,
-        })
+        }
+
+        log('Measurements: {}'
+        .format(particles.measurement_prediction_explicit(np.array([x, y]), o)))
+
+        particles.sense(measurements)
         particles.resample()
         x, y, o = particles.get_position_by_weighted_average()
-        log(particles.measurement_prediction_explicit(np.array([x, y]), o))
+        particles.get_position_by_max_weight()
         #state['room_belief'].update_belief(vision.belief)
 
     #start_room = state['room_belief'].get_belief(basic_start=False)
@@ -227,7 +228,7 @@ def wander_and_travel(sensors, particles, motors, vision):
     log('Starting wander_and_travel')
 
     state = {
-        'mode': 'starting',
+        'mode': 'wandering',
         'room_belief': RoomBelief()
     }
     front_ir = SensorRunningAverage()
@@ -235,7 +236,9 @@ def wander_and_travel(sensors, particles, motors, vision):
     sonar = SensorRunningAverage()
 
     x, y, o = particles.get_position_by_weighted_average()
-    log(particles.measurement_prediction_explicit(np.array([x, y]), o))
+    particles.get_position_by_max_weight()
+    log('Measurement prediction at weighted average: {}'
+        .format(particles.measurement_prediction_explicit(np.array([x, y]), o)))
 
     while True:
         if state['mode'] == 'starting':
@@ -269,15 +272,15 @@ def perform_basic_milestone(sensors, motors):
     f.close()
 
     # Go to destination
-    value = sensors.get_ir_front()
+    value = sensors.get_ir_left()
     total_distance = 0
     while total_distance < 170:
         while value < 70:
             motors.turn_by(10)
-            value = sensors.get_ir_front()
+            value = sensors.get_ir_left()
         motors.go_forward(10)
         total_distance += 10
-        value = sensors.get_ir_front()
+        value = sensors.get_ir_left()
         time.sleep(0.3)
     if DESTINATION_ROOM in ['E', 'B']:
         # right
@@ -285,10 +288,10 @@ def perform_basic_milestone(sensors, motors):
     elif DESTINATION_ROOM in ['C', 'D']:
         motors.turn_by(-90)
         # left
-    value = sensors.get_ir_front()
+    value = sensors.get_ir_left()
     while value > 20:
         motors.go_forward(10)
-        value = sensors.get_ir_front()
+        value = sensors.get_ir_left()
 
     # Stop this madness
     while True:

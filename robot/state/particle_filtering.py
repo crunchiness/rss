@@ -11,12 +11,15 @@ from robot.state.map import X_MAX, Y_MAX, ARENA_WALLS
 import utils
 from robot.utils import make_file_path, log
 
-ROTATION_STD_ABS = (10.0 / 360.0) * 2.0 * math.pi
-ROTATION_STD_FRAC = 0.25
-DRIFT_ROTATION_STD_ABS = (10.0 / 360.0) * 2.0 * math.pi
-FORWARD_STD_FRAC = 0.25
+ROTATION_STD_ABS = (5.0 / 360.0) * 2.0 * math.pi
+ROTATION_STD_FRAC = 0.2
+DRIFT_ROTATION_STD_ABS = (5.0 / 360.0) * 2.0 * math.pi
+FORWARD_STD_FRAC = 0.2
+# TODO FORWARD ABS ERROR
+# STD error of 1cm on every move of hall sensor
+FORWARD_STD_ABS = 3
 
-BUFFER_ZONE_FROM_WALLS = 22
+BUFFER_ZONE_FROM_WALLS = 5
 
 SIZE_OF_BINS = 2
 NUMBER_OF_ANGLES = 256
@@ -44,32 +47,35 @@ Y_BASE_LENGTH = 44
 
 UNEXPECTED_DECAY_CONST_IR = 0.017801905399325038
 UNEXPECTED_DECAY_CONST_SONAR = 0.01813218480166167
-PROB_HIT_STD_IR = 10.0
-PROB_HIT_STD_SONAR = 25.0
+PROB_HIT_STD_IR = 20.0
+PROB_HIT_STD_SONAR = 35.0
 
 KLD_Z_DELTA = 2.23 # for delta = 0.1
 KLD_EPSILON = 0.05
-KLD_BIN_SIZE = 8
-KLD_NUMBER_OF_ANGLES = 8
-KLD_MAX_PARTICLES = 10000
+KLD_BIN_SIZE = 4
+KLD_NUMBER_OF_ANGLES = 16
+KLD_MAX_PARTICLES = 1000
 
 ESS_THRESHOLD = 0.9
 
-DISTANCE_TO_CLOSEST_WALL_FILE = make_file_path('robot/data/') + 'closest_distances.npy'
+SET_POSITION_UNCERTAINTY = 5.0
+SET_ORIENTATION_UNCERTAINTY = (5.0 / 180.0) * pi
+
+DISTANCE_TO_CLOSEST_WALL_FILE = make_file_path('data/') + 'closest_distances.npy'
 if os.path.exists(DISTANCE_TO_CLOSEST_WALL_FILE):
     DISTANCE_TO_CLOSEST_WALL = np.load(DISTANCE_TO_CLOSEST_WALL_FILE).astype(np.uint8)
 else:
     log('Couldnt find DISTANCE_TO_CLOSEST_WALL_FILE: {}'.format(str(DISTANCE_TO_CLOSEST_WALL_FILE)))
 
 RAYCASTING_DISTANCES = None
-RAYCASTING_DISTANCES_FILE = make_file_path('robot/data/') + 'raycasting_distances_SIZE_BIN_4.npy'
+RAYCASTING_DISTANCES_FILE = make_file_path('data/') + 'raycasting_distances_SIZE_BIN_2.npy'
 if os.path.exists(RAYCASTING_DISTANCES_FILE):
     RAYCASTING_DISTANCES = np.load(RAYCASTING_DISTANCES_FILE).astype(np.uint8)
 else:
     log('Couldnt find RAYCASTING_DISTANCES_FILE: {}'.format(str(RAYCASTING_DISTANCES_FILE)))
 
 class Particles:
-    def __init__(self, n=500, where=None, drawing=None):
+    def __init__(self, n=500, where=None, drawing=None, pose=[0, 0, 0]):
         """
         Creates particle set with given initial position
         :param n: number of particles
@@ -80,12 +86,12 @@ class Particles:
 
         log('Initiating particle filtering with setting where=' + str(where))
 
-        self.initialize_KLD(where)
+        self.initialize_KLD(where, pose)
 
         self.weights = np.ones(self.N, dtype=np.float32)
         self.weights = np.divide(self.weights, np.sum(self.weights))
 
-    def initialize_KLD(self, where):
+    def initialize_KLD(self, where, pose=[0,0,0]):
         H = set()
         M = 0
         k = 0
@@ -106,11 +112,17 @@ class Particles:
             elif where == '1base':
                 x =  int(np.random.random() * X_BASE_LENGTH) + int(X_BASE_OFFSET)
                 y =  int(np.random.random() * Y_BASE_LENGTH) + int(Y_BASE_OFFSET)
+            elif where == 'set':
+                x =  int(np.random.random() * 2.0 * SET_POSITION_UNCERTAINTY) + int(pose[0] - SET_POSITION_UNCERTAINTY)
+                y =  int(np.random.random() * 2.0 * SET_POSITION_UNCERTAINTY) + int(pose[1] - SET_POSITION_UNCERTAINTY)
             else:
                 x = int(np.random.random() * X_MAX)
                 y = int(np.random.random() * Y_MAX)
 
-            orientation = np.random.random() * 2.0 * pi
+            if where == 'set':
+                orientation = (np.random.random() * 2.0 * SET_ORIENTATION_UNCERTAINTY - SET_ORIENTATION_UNCERTAINTY + pose[2]) % (2.0 * pi)
+            else:
+                orientation = np.random.random() * 2.0 * pi
             increment = 2.0*pi/KLD_NUMBER_OF_ANGLES
             binned_orientation = int(((orientation + 0.5*increment) % (2.0 * pi)) / increment)
 
@@ -182,7 +194,7 @@ class Particles:
         y_norm /= Y_MAX
         return .5 * (np.var(x_norm) + np.var(y_norm))
 
-    def get_position_by_max_weight(self, position_confidence=True):
+    def get_position_by_max_weight(self, position_confidence=False):
         """
         :return: highest weighted particle position
         """
@@ -239,9 +251,9 @@ class Particles:
                 np.add(
                     np.multiply(
                         np.random.normal(size=self.N),
-                        ROTATION_STD_FRAC*rotation
+                        ROTATION_STD_ABS
                     ),
-                    -0.5 * ROTATION_STD_FRAC*rotation + rotation
+                    rotation
                 )
             ),
             2.0 * pi)\
@@ -269,9 +281,9 @@ class Particles:
         np.add(
             np.multiply(
                 np.random.normal(size=self.N),
-                FORWARD_STD_FRAC * distance
+                FORWARD_STD_ABS
             ),
-            (1 - 0.5 * FORWARD_STD_FRAC) * distance
+            distance
         )
 
         for i in xrange(len(vectors)):
@@ -281,6 +293,7 @@ class Particles:
                 [-np.sin(orientation), np.cos(orientation)]
             ])
             vectors[i] = np.multiply(np.dot(rot_matrix, vectors[i]),distances[i])
+            self.orientations[i] = orientations[i]
 
         self.locations =\
             np.add(
@@ -288,12 +301,13 @@ class Particles:
                 vectors
             ).astype(np.int16)
 
+
     def backward(self, distance):
         """Moves the particles backward"""
         self.forward(-distance)
 
     def sense(self, measurement):
-        log(measurement)
+        log('Measurements inside sense(): {}'.format(measurement))
         """Sensing"""
         probabilities = np.zeros(self.N, dtype=np.float32)
         for i in xrange(self.N):
@@ -522,6 +536,7 @@ class Particles:
                                   self.measurement_prob_sonar(measurements['sonar'], predictions['sonar'])],
                                  dtype=np.float32)
         probability = np.dot(weights, probabilities)
+        # probability = np.prod(probabilities)
 
         return probability
 

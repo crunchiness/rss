@@ -1,6 +1,6 @@
 #!/bin/sh
 
-tar -czvf upload.tgz robot/ toddler.py
+tar -czvf upload.tgz robot/ --exclude='robot/data/raycasting_distances_SIZE_BIN_2.npy' toddler.py
 
 HOST='elimia.inf.ed.ac.uk'
 USER='student'

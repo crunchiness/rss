@@ -1,54 +1,112 @@
 import time
 import numpy as np
+from math import pi
+from robot.utils import log
 # distance unit is cm
 
-DIAMETER = 16  # distance between (the middle of) wheels
-WHEEL = 9  # wheel diameter
+BRAKING_TIME_TRANSLATION = 0.2
+BRAKING_TIME_ROTATION = 0.1
+BRAKING_SPEED = 5
+BRAKING_MULTIPLIER = 5
 
+HALL_SENSOR_CHANGES_FOR_REVOLUTION = 2
+
+DIAMETER = 16.0  # distance between (the middle of) wheels
+WHEEL = 9  # wheel diameter
+WHEEL_PERIMETER = WHEEL * pi  # because diameter
+HALL_REVS_TO_WHEEL_REVS = 0.2
+HALL_PERIMETER = HALL_REVS_TO_WHEEL_REVS * WHEEL_PERIMETER
+HALL_ANGLE = HALL_PERIMETER / (pi * DIAMETER) * 360.0
+
+log('Distance per single hall sensor revolution: {}'.format(HALL_PERIMETER))
+log('Angle per single hall sensor revolution: {}'.format(HALL_ANGLE))
 
 class Motors:
-    def __init__(self, io):
+    def __init__(self, io, sensors):
         self.io = io
+        self.sensors = sensors
+        self.speed = 7.2875
+        self.l = 0
+        self.r = 0
 
     def move(self, l=100, r=100):
         self.io.setMotors(l, -r)
+        self.l = l
+        self.r = r
 
     def halt(self):
-        self.io.setMotors(0, 0)
+        if self.l > 0 and self.r > 0:
+            self.move(-BRAKING_SPEED, -BRAKING_SPEED/BRAKING_MULTIPLIER)
+            time.sleep(BRAKING_TIME_TRANSLATION)
+        if self.l < 0 and self.r < 0:
+            self.move(BRAKING_SPEED/BRAKING_MULTIPLIER, BRAKING_SPEED)
+            time.sleep(BRAKING_TIME_TRANSLATION)
+        if self.l < 0 and self.r > 0:
+            self.move(BRAKING_SPEED, -BRAKING_SPEED)
+            time.sleep(BRAKING_TIME_ROTATION)
+        if self.l > 0 and self.r < 0:
+            self.move(-BRAKING_SPEED, BRAKING_SPEED)
+            time.sleep(BRAKING_TIME_ROTATION)
+        self.move(0, 0)
 
-    def go_forward(self, distance):
-        """
-        Robot moves forward specified distance then stops for .5s
-        :param distance: distance in cm
-        """
-        # TODO: correct values; now 1m is ~97cm
-        if distance < 0:
-            self.go_backward(-distance)
-            return
-        t = (distance - 0.4 * 10.3125) / 7.2875
-        self.move(100, 100)
-        time.sleep(t)
-        self.move(0, 100)
-        time.sleep(0.4)
-        self.halt()
-        time.sleep(0.5)
+    def go_forward_revs(self, revs):
+        previous_hall = self.sensors.get_hall_sensor()
+        changes = 0
+        self.move()
+        start = time.time()
 
-    def go_backward(self, distance):
-        """
-        Robot moves forward specified distance then stops for .5s
-        :param distance: distance in cm
-        """
-        # TODO: correct values; now 1m is ~91cm
-        if distance < 0:
-            self.go_forward(-distance)
-            return
-        t = (distance - 0.4 * 10.3125) / 7.2875
+        #TODO may need something better here
+        while True:
+            temp_hall = self.sensors.get_hall_sensor()
+            if temp_hall is not previous_hall:
+                previous_hall = temp_hall
+                changes += 1
+            if changes is HALL_SENSOR_CHANGES_FOR_REVOLUTION * int(revs):
+                time_spent = time.time() - start
+                self.halt()
+                if revs > 2:
+                    self.speed += float(revs)*float(HALL_PERIMETER)/float(time_spent)
+                    self.speed /= 2
+                return
+
+    def go_backward_revs(self, revs):
+        previous_hall = self.sensors.get_hall_sensor()
+        changes = 0
         self.move(-100, -100)
-        time.sleep(t)
-        self.move(-100, 0)
-        time.sleep(0.4)
-        self.halt()
-        time.sleep(0.5)
+        start = time.time()
+
+        #TODO may need something better here
+        while True:
+            temp_hall = self.sensors.get_hall_sensor()
+            if temp_hall is not previous_hall:
+                previous_hall = temp_hall
+                changes += 1
+            if changes is HALL_SENSOR_CHANGES_FOR_REVOLUTION * int(revs):
+                time_spent = time.time() - start
+                self.halt()
+                if revs > 2:
+                    self.speed += float(revs)*float(HALL_PERIMETER)/float(time_spent)
+                    self.speed /= 2
+                return
+
+    def turn_by_revs(self, revs):
+        previous_hall = self.sensors.get_hall_sensor()
+        changes = 0
+
+        direction = -1 if revs < 0 else 1
+        self.move(direction * 100, -(direction * 100))
+
+        revs = np.abs(revs)
+
+        #TODO may need something better here
+        while True:
+            temp_hall = self.sensors.get_hall_sensor()
+            if temp_hall is not previous_hall:
+                previous_hall = temp_hall
+                changes += 1
+            if changes is HALL_SENSOR_CHANGES_FOR_REVOLUTION * int(revs):
+                self.halt()
+                return
 
     def turn_by(self, value, radians=False):
         """
@@ -57,10 +115,60 @@ class Motors:
         :param radians:
         :return: if true, value interpreted as radians otherwise degrees (default)
         """
+        value = float(value)
+
         if radians:
             value = 180. * value / np.pi
+
+        revs = int(value / HALL_ANGLE)
         direction = -1 if value < 0 else 1
+        self.turn_by_revs(revs)
+
+        value %= HALL_ANGLE
+
+        t = value * (pi * DIAMETER) / self.speed / 360.0
         self.move(direction * 100, -(direction * 100))
-        calc_time = (7.3 * abs(value)) / 360
-        time.sleep(calc_time)
+        time.sleep(t)
+        self.halt()
+
+
+    def go_forward(self, distance):
+        """
+        Robot moves forward specified distance then stops for .5s
+        :param distance: distance in cm
+        """
+        distance = float(distance)
+
+        if distance < 0:
+            self.go_backward(-distance)
+            return
+
+        revs = int(distance/HALL_PERIMETER)
+        self.go_forward_revs(revs)
+
+        distance %= HALL_PERIMETER
+        t = distance / self.speed
+        self.move(100, 100)
+        time.sleep(t)
+        self.halt()
+
+    def go_backward(self, distance):
+        """
+        Robot moves forward specified distance then stops for .5s
+        :param distance: distance in cm
+        """
+        # TODO: correct values; now 1m is ~97cm
+        distance = float(distance)
+
+        if distance < 0:
+            self.go_forward(-distance)
+            return
+
+        revs = int(distance/HALL_PERIMETER)
+        self.go_backward_revs(revs)
+
+        distance %= HALL_PERIMETER
+        t = distance / self.speed
+        self.move(-100, -100)
+        time.sleep(t)
         self.halt()
