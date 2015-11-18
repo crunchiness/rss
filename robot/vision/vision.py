@@ -8,7 +8,6 @@ class Vision:
         self.io = io
         self.io.cameraSetResolution('high')
         self.belief = []
-        self.resources = {}
         self.model_names = [
             'zoidberg',
             'mario',
@@ -34,12 +33,12 @@ class Vision:
         for i in range(0, 5):
             self.io.cameraGrab()
         img = self.io.cameraRead()
-
         assert img is not None, 'failed to read image'
-
         self.belief = detect_pieces(img, save=True, display=False)
+        print self.belief
 
-        # Resource identification
+    def see_resources(self):
+        resources = {}
         for i in range(0, 10):
             self.io.cameraGrab()
             img = self.io.cameraRead()
@@ -49,4 +48,4 @@ class Vision:
                     self.detection_confirmers[model_name].add(detection['p1'])
 
         for model_name in self.model_names:
-            self.resources[model_name] = self.detection_confirmers[model_name].get_result()
+            resources[model_name] = self.detection_confirmers[model_name].get_result()
