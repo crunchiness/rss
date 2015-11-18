@@ -330,6 +330,7 @@ class Particles:
         return False
 
     def resample(self):
+        log('Resampling...')
         ess = 1/np.sum(np.power(self.weights, 2))
         # print ess
         if ess > self.N * ESS_THRESHOLD:
