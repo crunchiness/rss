@@ -11,3 +11,16 @@ better sensor placement to avoid obstacles
 
 notes_adam:
 1. initialize particles at given location and orientation
+
+move around between the predefined nodes in the room,
+spin around at each of the nodes
+try to recognize a box
+if recognized a box try to recognize which box is it
+turn to place it in a centre
+move forward
+
+since now detect black rectangle at the top
+while visible:
+    turn to place it in the middle
+    move forward
+

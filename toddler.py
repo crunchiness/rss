@@ -6,22 +6,24 @@ import time
 from robot.body.motors import Motors
 from robot.body.sensors import Sensors
 from robot.vision.vision import Vision
-from robot.state.particle_filtering import Particles
+from robot.state.particle_filtering import Particles, X_BASE_OFFSET, Y_BASE_LENGTH, X_MAX, Y_MAX
 from robot.visualisation.drawing import Drawing
 from robot.localization_logic import wander_and_travel
 
 from robot.utils import log, collect_front_IR_and_sonar_measurements
 
+from math import pi
 
 # TODO: sanity check jumping between rooms
+# TODO: DITTO WHAT YOU MEAN BRO, COMPLETELY SANE
 class Toddler:
     def __init__(self, io):
         print 'Toddler, the dragon has awoken... Beware.'
         self.io = io
-        self.motors = Motors(io)
         self.sensors = Sensors(io)
+        self.motors = Motors(io, self.sensors)
         self.vision = Vision(io)
-        self.particles = Particles(n=1000, where='1base', drawing=Drawing())
+        self.particles = Particles(n=1000, where='set', drawing=Drawing(), pose=[162, Y_MAX-108, 3.0/2.0*pi])
 
     def stop(self):
         """For development only"""
