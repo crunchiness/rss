@@ -3,7 +3,6 @@ import datetime
 import cv2  # 3.0.0-dev
 import robot.utils as utils
 
-
 THRESHOLDS = {
     'dark_green': {
         'h': (59, 82),
@@ -49,6 +48,7 @@ THRESHOLDS = {
 
 MIN_PIXELS = 16 * 16  # minimum number of pixels needed to confirm presence of object
 
+
 def detect_pieces(img_file, display=True, save=True, path='log/'):
     """
     detects shape (based on color)
@@ -88,7 +88,7 @@ def detect_pieces(img_file, display=True, save=True, path='log/'):
                 text = '{0} - {1}'.format(color, belief[index][0])
                 cv2.putText(img, text, (left, top + 140), cv2.FONT_HERSHEY_PLAIN, color=(0, 0, 0), fontScale=1)
         img[440:440 + 120, 320:320 + 160] = bgr
-        cv2.putText(img, 'original', (320, 440+140), cv2.FONT_HERSHEY_PLAIN, color=(0, 0, 0), fontScale=1)
+        cv2.putText(img, 'original', (320, 440 + 140), cv2.FONT_HERSHEY_PLAIN, color=(0, 0, 0), fontScale=1)
         if save:
             path = utils.make_file_path(path)
             file_name = 'detection-' + datetime.datetime.now().isoformat() + '.png'
@@ -101,9 +101,11 @@ def detect_pieces(img_file, display=True, save=True, path='log/'):
 
     return belief_dict
 
+
 def interpret_mask(mask):
     detected_pixels = len(np.nonzero(mask)[0])
     return detected_pixels > MIN_PIXELS
+
 
 def mask_image(image_hsv, mask):
     """
@@ -113,6 +115,7 @@ def mask_image(image_hsv, mask):
     """
     masked_hsv = cv2.bitwise_and(image_hsv, image_hsv, mask=mask)
     return cv2.cvtColor(masked_hsv, cv2.COLOR_HSV2RGB)
+
 
 def threshold_image(img_hsv, thresholds):
     h = thresholds['h']
