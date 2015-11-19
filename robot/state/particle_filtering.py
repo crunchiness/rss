@@ -68,7 +68,7 @@ else:
     log('Couldnt find DISTANCE_TO_CLOSEST_WALL_FILE: {}'.format(str(DISTANCE_TO_CLOSEST_WALL_FILE)))
 
 RAYCASTING_DISTANCES = None
-RAYCASTING_DISTANCES_FILE = make_file_path('data/') + 'raycasting_distances_SIZE_BIN_2_33degrees.npy'
+RAYCASTING_DISTANCES_FILE = make_file_path('data/') + 'raycasting_distances_SIZE_BIN_2_orthogonal_IRs.npy'
 if os.path.exists(RAYCASTING_DISTANCES_FILE):
     RAYCASTING_DISTANCES = np.load(RAYCASTING_DISTANCES_FILE).astype(np.uint8)
 else:

@@ -33,11 +33,11 @@ class Toddler:
     # It has its dedicated thread so you can keep block it.
     def Control(self, ok):
         while ok():
-            # self.motors.turn_by(2*np.pi)
-            # self.stop()
+            self.motors.turn_by(-np.pi/2., full=True)
+            self.stop()
             # milestone2(self.sensors, self.motors, self.vision)
             # perform_basic_milestone(self.sensors, self.motors)
-            wander_and_travel(self.sensors, self.particles, self.motors, self.vision)
+            # wander_and_travel(self.sensors, self.particles, self.motors, self.vision)
             # collect_front_IR_and_sonar_measurements(self.io)
 
     # This is a callback that will be called repeatedly.
