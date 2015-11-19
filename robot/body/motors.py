@@ -12,7 +12,7 @@ BRAKING_MULTIPLIER = 5
 HALL_SENSOR_CHANGES_FOR_REVOLUTION = 2
 
 DIAMETER = 16.0  # distance between (the middle of) wheels
-WHEEL = 8.4  # wheel diameter
+WHEEL = 8.3  # wheel diameter
 WHEEL_PERIMETER = WHEEL * pi  # because diameter
 HALL_REVS_TO_WHEEL_REVS = 0.2
 HALL_PERIMETER = HALL_REVS_TO_WHEEL_REVS * WHEEL_PERIMETER
