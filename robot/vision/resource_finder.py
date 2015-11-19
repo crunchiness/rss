@@ -28,11 +28,11 @@ class CubeDetector:
     def load_cube_model(self):
         if self.path is None:
             base_path = os.path.dirname(os.path.dirname(os.path.realpath('__file__'))) + '/'
-            path = base_path + 'robot/vision/small_models/{}.png'.format(self.which)
+            path = base_path + 'student/robot/vision/small_models/{}.png'.format(self.which)
         else:
             path = self.path
         model_img = cv2.imread(path)
-        assert model_img is not None, 'failed to load model' + path
+        assert model_img is not None, 'failed to load model ' + path
         features = self.detect_features(model_img)
         return {
             'keypoints': features[0],

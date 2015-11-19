@@ -184,7 +184,7 @@ def look_around(motors, sensors, front_ir, right_ir, sonar, particles, state, vi
 
     multiple = 2.0
 
-    n = int(360/(multiple*HALL_ANGLE))
+    n = int(2.*np.pi/(multiple*HALL_ANGLE))
     for i in xrange(n):
         motors.turn_by((multiple*HALL_ANGLE))
         particles.rotate((multiple*HALL_ANGLE)/180. * np.pi)

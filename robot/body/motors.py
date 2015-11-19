@@ -16,7 +16,7 @@ WHEEL = 9  # wheel diameter
 WHEEL_PERIMETER = WHEEL * pi  # because diameter
 HALL_REVS_TO_WHEEL_REVS = 0.2
 HALL_PERIMETER = HALL_REVS_TO_WHEEL_REVS * WHEEL_PERIMETER
-HALL_ANGLE = HALL_PERIMETER / (pi * DIAMETER) * 360.0
+HALL_ANGLE = HALL_PERIMETER / (0.5 * DIAMETER)
 
 log('Distance per single hall sensor revolution: {}'.format(HALL_PERIMETER))
 log('Angle per single hall sensor revolution: {}'.format(HALL_ANGLE))
@@ -26,7 +26,7 @@ class Motors:
     def __init__(self, io, sensors):
         self.io = io
         self.sensors = sensors
-        self.speed = 7.2875
+        self.speed = 7.35492206953
         self.l = 0
         self.r = 0
 
@@ -36,6 +36,7 @@ class Motors:
         self.r = r
 
     def halt(self):
+        log('Halting')
         if self.l > 0 and self.r > 0:
             self.move(-BRAKING_SPEED, -BRAKING_SPEED / BRAKING_MULTIPLIER)
             time.sleep(BRAKING_TIME_TRANSLATION)
@@ -51,6 +52,7 @@ class Motors:
         self.move(0, 0)
 
     def go_forward_revs(self, revs):
+        log('Going by revs: {}'.format(revs))
         previous_hall = self.sensors.get_hall_sensor()
         changes = 0
         if revs < 0:
@@ -71,12 +73,15 @@ class Motors:
                 if revs > 2:
                     self.speed += float(revs) * float(HALL_PERIMETER) / float(time_spent)
                     self.speed /= 2
+                    log('Updated self.speed: {}'.format(self.speed))
                 return
 
     def go_backward_revs(self, revs):
         self.go_forward_revs(-revs)
 
     def turn_by_revs(self, revs):
+        log('Turning by revs: {}'.format(revs))
+
         previous_hall = self.sensors.get_hall_sensor()
         changes = 0
 
@@ -95,7 +100,7 @@ class Motors:
                 self.halt()
                 return
 
-    def turn_by(self, value, radians=False):
+    def turn_by(self, value, radians=True):
         """
         Robot turns in place by an angle specified in value. Positive is clockwise.
         :param value:
@@ -104,16 +109,18 @@ class Motors:
         """
         value = float(value)
 
-        if radians:
-            value = 180. * value / np.pi
+        log('Turning by angle: {}'.format(value))
 
         revs = int(value / HALL_ANGLE)
         direction = -1 if value < 0 else 1
+        value = abs(value)
         self.turn_by_revs(revs)
 
         value %= HALL_ANGLE
 
-        t = value * (pi * DIAMETER) / self.speed / 360.0
+        log('Turning by remaining angle: {}'.format(value))
+
+        t = value * DIAMETER / self.speed / 2.
         self.move(direction * 100, -(direction * 100))
         time.sleep(t)
         self.halt()
@@ -125,6 +132,8 @@ class Motors:
         """
         distance = float(distance)
 
+        log('Going forward by distance: {}'.format(distance))
+
         if distance < 0:
             self.go_backward(-distance)
             return
@@ -133,6 +142,9 @@ class Motors:
         self.go_forward_revs(revs)
 
         distance %= HALL_PERIMETER
+
+        log('Going forward by remaining distance: {}'.format(distance))
+
         t = distance / self.speed
         self.move(100, 100)
         time.sleep(t)

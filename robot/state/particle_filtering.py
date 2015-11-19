@@ -68,7 +68,7 @@ else:
     log('Couldnt find DISTANCE_TO_CLOSEST_WALL_FILE: {}'.format(str(DISTANCE_TO_CLOSEST_WALL_FILE)))
 
 RAYCASTING_DISTANCES = None
-RAYCASTING_DISTANCES_FILE = make_file_path('data/') + 'raycasting_distances_SIZE_BIN_2.npy'
+RAYCASTING_DISTANCES_FILE = make_file_path('data/') + 'raycasting_distances_SIZE_BIN_2_33degrees.npy'
 if os.path.exists(RAYCASTING_DISTANCES_FILE):
     RAYCASTING_DISTANCES = np.load(RAYCASTING_DISTANCES_FILE).astype(np.uint8)
 else:
@@ -207,9 +207,9 @@ class Particles:
                 self.drawing.add_point(r[0], r[1])
             self.drawing.add_big_point(x_approx, y_approx)
             self.drawing.save()
-        
+
         log('Max weight pose: {}, {}, {}'.format(x_approx, y_approx, o_approx))
-            
+
         if position_confidence:
             return x_approx, y_approx, o_approx, self.get_position_conf()
         else:
@@ -238,9 +238,9 @@ class Particles:
                 self.drawing.add_point(r[0], r[1])
             self.drawing.add_big_point(x_approx, y_approx)
             self.drawing.save()
-        
+
         log('Weighted average pose: {}, {}, {}'.format(x_approx, y_approx, o_approx))
-        
+
         return x_approx, y_approx, o_approx
 
     def rotate(self, rotation):
