@@ -24,6 +24,7 @@ nodes = NODES_MILESTONE2_CORNERROOM
 # }
 
 def S5_just_go(motors, sensors, vision, particles):
+    particles_measure_sense_resample(sensors, particles)
     motors.go_forward(15*HALL_PERIMETER)
     particles.forward(15*HALL_PERIMETER)
     particles_measure_sense_resample(sensors, particles)
@@ -40,8 +41,9 @@ def S5_just_go(motors, sensors, vision, particles):
             turn_angle = orientate({'x': x, 'y': y}, my_x, my_y, my_angle)
             log('Turn angle: {}'.format(turn_angle))
 
-            motors.turn_by(-turn_angle, full=True)
-            particles.rotate(-turn_angle)
+            #TODO full = ?
+            motors.turn_by(turn_angle, full=False)
+            particles.rotate(turn_angle)
             particles_measure_sense_resample(sensors, particles)
 
             d = euclidean_distance((x, y), (my_x, my_y))

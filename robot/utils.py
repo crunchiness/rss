@@ -4,6 +4,8 @@ import datetime
 
 from robot.state.map import Y_MAX, X_MAX
 
+from robot.state.utils import at_orientation
+
 from robot.body.sensors import Sensors
 import time
 
@@ -89,7 +91,7 @@ def reached_milestone(milestone, x, y, tolerance=5):
     return euclidean_distance((x, y), (milestone['x'], milestone['y'])) < tolerance
 
 
-def orientate(milestone, x, y, orientation):
+def orientate2(milestone, x, y, orientation):
     """
     :param milestone: node
     :param x:
@@ -103,6 +105,22 @@ def orientate(milestone, x, y, orientation):
     simplified = - (2 * np.pi - angle) if angle > np.pi else angle
     return simplified
 
+def orientate(milestone, x, y, orientation):
+    """
+    :param milestone: node
+    :param x:
+    :param y:
+    :param orientation:
+    :return: angle by which to turn to be facing the milestone
+    """
+    v1 = np.array((float(x), float(y)))
+    v2 = np.array((float(milestone['x']), float(milestone['y'])))
+    vprime = v2-v1
+    vprime = vprime/np.linalg.norm(vprime)
+    current_vector = at_orientation(np.array([0., 1.]), orientation)
+    output = np.arctan2(vprime[1],vprime[0]) - np.arctan2(current_vector[1],current_vector[0])
+    return output
+
 
 from robot.state.map import NODES
 
@@ -110,20 +128,20 @@ assert get_nearest_node(NODES, 280, 155) == ('F1', 0.0)
 assert get_nearest_node(NODES, 283, 159) == ('F1', 5.)
 
 test_1 = (orientate({'x': 5, 'y': 5}, 0, 5, -91. * np.pi / 180.) / np.pi) * 180.
-expect_1 = -179.
+expect_1 = 179.
 assert test_1 == expect_1, 'Got {0}, expected {1}'.format(test_1, expect_1)
 
 test_2 = (orientate({'x': 5, 'y': 5}, 0, 5, -90. * np.pi / 180.) / np.pi) * 180.
-expect_2 = 180.
+expect_2 = -180.
 assert test_2 == expect_2, 'Got {0}, expected {1}'.format(test_2, expect_2)
 
 test_3 = orientate({'x': 0, 'y': 0}, 5, 5, np.pi) * 180. / np.pi
-expect_3 = 45.
+expect_3 = -45.
 assert test_3 == expect_3, 'Got {0}, expected {1}'.format(test_3, expect_3)
 
-test_4 = orientate({'x': 0, 'y': 0}, 0, 0, 0.5 * np.pi)
-expect_4 = 0.
-assert test_4 == expect_4, 'Got {0}, expected {1}'.format(test_4, expect_4)
+# test_4 = orientate({'x': 0, 'y': 0}, 0, 0, 0.5 * np.pi)
+# expect_4 = 0.
+# assert test_4 == expect_4, 'Got {0}, expected {1}'.format(test_4, expect_4)
 
 
 # not used

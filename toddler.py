@@ -15,7 +15,7 @@ from robot.localization_logic import wander_and_travel
 import numpy as np
 
 POSE_MY_PARTICLES = [162, Y_MAX-108, 3.0/2.0*np.pi]
-POSE_TEST_CORNERROOM = [143+33, 77, np.pi/2.]
+POSE_TEST_CORNERROOM = [143+18, 77, np.pi/2.]
 
 # TODO: sanity check jumping between rooms
 # TODO: DITTO WHAT YOU MEAN BRO, COMPLETELY SANE
@@ -26,7 +26,7 @@ class Toddler:
         self.sensors = Sensors(io)
         self.motors = Motors(io, self.sensors)
         self.vision = Vision(io)
-        self.particles = Particles(n=1000, where='set', drawing=Drawing(), pose=POSE_TEST_CORNERROOM)
+        self.particles = Particles(n=100, where='set', drawing=Drawing(), pose=POSE_TEST_CORNERROOM)
 
     def stop(self):
         """For development only"""
