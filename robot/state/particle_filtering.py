@@ -33,8 +33,8 @@ ROBOT_EDGES = [
 ]
 
 SENSORS_LOCATIONS = {
-    'IR_left':  {'location': [-9.5, 21.0], 'orientation': 0},
-    'IR_right': {'location': [ 9.5, 21.0], 'orientation': 0},
+    'IR_left':  {'location': [-9.5, 19.0], 'orientation': 0},
+    'IR_right': {'location': [ 9.5, 19.0], 'orientation': 0},
     'sonar': {'location': [3.5, -13.0], 'orientation': pi},
 }
 
