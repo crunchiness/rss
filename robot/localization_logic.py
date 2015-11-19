@@ -107,7 +107,6 @@ def wander(sensors, particles, motors, left_ir, right_ir, sonar, state, vision):
 
         log('Measurement predictions: {}'
         .format(particles.measurement_prediction_explicit(np.array([x, y]), o)))
-
         particles.sense(measurements)
         particles.resample()
         x, y, o = particles.get_position_by_max_weight()

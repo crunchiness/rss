@@ -26,6 +26,7 @@ nodes = NODES_MILESTONE2_CORNERROOM
 def S5_just_go(motors, sensors, vision, particles):
     motors.go_forward(15*HALL_PERIMETER)
     particles.forward(15*HALL_PERIMETER)
+    particles_measure_sense_resample(sensors, particles)
     while True:
         # ir_left = sensors.get_ir_left()
         # ir_right = sensors.get_ir_right()
@@ -41,11 +42,13 @@ def S5_just_go(motors, sensors, vision, particles):
 
             motors.turn_by(-turn_angle, full=True)
             particles.rotate(-turn_angle)
+            particles_measure_sense_resample(sensors, particles)
 
             d = euclidean_distance((x, y), (my_x, my_y))
 
             motors.go_forward(d)
             particles.forward(d)
+            particles_measure_sense_resample(sensors, particles)
 
             for i in xrange(int(2. * np.pi / HALL_ANGLE)):
                 resources = vision.see_resources(TARGET_CUBE)
@@ -53,6 +56,7 @@ def S5_just_go(motors, sensors, vision, particles):
                     print TARGET_CUBE, 'found!'
                 motors.turn_by(HALL_ANGLE)
                 particles.rotate(HALL_ANGLE)
+                particles_measure_sense_resample(sensors, particles)
 
         # resources = vision.see_resources(TARGET_CUBE)
         # if TARGET_CUBE in resources and resources[TARGET_CUBE]:
@@ -63,6 +67,25 @@ def S5_just_go(motors, sensors, vision, particles):
         #     if TARGET_CUBE in resources and resources[TARGET_CUBE]:
         #         print TARGET_CUBE, 'found!'
         # motors.turn_by(HALL_ANGLE)
+
+def particles_measure_sense_resample(sensors, particles):
+    # localization - driving around avoiding obstacles
+    left_ir_reading = sensors.get_ir_left()
+    right_ir_reading = sensors.get_ir_right()
+    sonar_reading = sensors.get_sonar()
+
+    # Update position via particle filter
+    measurements = {
+        'IR_left': left_ir_reading if left_ir_reading is not None else 0,
+        'IR_right': right_ir_reading if right_ir_reading is not None else 0,
+        'sonar': sonar_reading if sonar_reading is not None else 0,
+    }
+
+    log('Measurement predictions: {}'
+    .format(particles.measurement_prediction_explicit(np.array([x, y]), o)))
+    particles.sense(measurements)
+    particles.resample()
+    particles.get_position_by_weighted_average()
 
 def milestone2(sensors, motors, vision, particles):
     state = {
