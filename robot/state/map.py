@@ -79,3 +79,12 @@ NODES_MILESTONE2_CORNERROOM = {
     '7': {'id': '7', 'room': 'A', 'y': 231-55,      'x': X_MAX-31,      'ambiguous': False, 'connects': ['6', '8']},
     '8': {'id': '8', 'room': 'A', 'y': 135,         'x': X_MAX-41,      'ambiguous': False, 'connects': ['7', '1']},
 }
+
+NODES_MILESTONE2_MIDDLEROOM = {
+    '1': {'id': '1', 'room': 'A', 'y': 231+34,          'x': X_MAX-33,  'ambiguous': False, 'connects': ['2', '6']},
+    '2': {'id': '2', 'room': 'A', 'y': 231+35,          'x': X_MAX-72,  'ambiguous': False, 'connects': ['1', '3']},
+    '3': {'id': '3', 'room': 'A', 'y': 231+74,          'x': X_MAX-87,  'ambiguous': True,  'connects': ['2', '4']},
+    '4': {'id': '4', 'room': 'A', 'y': Y_MAX-132-35,    'x': X_MAX-75,  'ambiguous': True,  'connects': ['3', '5']},
+    '5': {'id': '5', 'room': 'A', 'y': Y_MAX-132-32,    'x': X_MAX-33,  'ambiguous': True,  'connects': ['4', '6']},
+    '6': {'id': '6', 'room': 'A', 'y': Y_MAX-132-32-46, 'x': X_MAX-33,  'ambiguous': True,  'connects': ['5', '1']},
+}
