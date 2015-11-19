@@ -6,10 +6,6 @@ from utils import orientate, euclidean_distance
 from robot.state.map import NODES_MILESTONE2_CORNERROOM
 
 TARGET_CUBE = 'watching'
-DIST_CONST = 20
-X = 143+33
-Y = 77
-ANGLE = np.pi/2  # degrees
 
 nodes = NODES_MILESTONE2_CORNERROOM
 # nodes = [
@@ -27,31 +23,36 @@ nodes = NODES_MILESTONE2_CORNERROOM
 #     '8': {'id': '8', 'room': 'A', 'y': 135,         'x': X_MAX-41,      'ambiguous': False, 'connects': ['7', '1']},
 # }
 
-def S5_just_go(motors, sensors, vision):
-    odometry = OdometryLocalisation(X, Y, ANGLE)
+def S5_just_go(motors, sensors, vision, particles):
     motors.go_forward(15*HALL_PERIMETER)
-    odometry.add_forward(15*HALL_PERIMETER)
+    particles.forward(15*HALL_PERIMETER)
     while True:
         # ir_left = sensors.get_ir_left()
         # ir_right = sensors.get_ir_right()
         for key in sorted(nodes.keys()):
             node = nodes[key]
             x, y = (node['x'], node['y'])
-            my_x, my_y, my_angle = odometry.get_coordinates()
+            my_x, my_y, my_angle = particles.get_position_by_weighted_average()
             log('I believe I am at pose: x={}, y={}, o={}'.format(my_x,my_y,my_angle))
             log('Going to node {}'.format(key))
             log('Node coordinates: x={}, y={}'.format(x, y))
             turn_angle = orientate({'x': x, 'y': y}, my_x, my_y, my_angle)
             log('Turn angle: {}'.format(turn_angle))
-            motors.turn_by(-turn_angle, radians=True)
+
+            motors.turn_by(-turn_angle, full=True)
+            particles.rotate(-turn_angle)
+
             d = euclidean_distance((x, y), (my_x, my_y))
+
             motors.go_forward(d)
+            particles.forward(d)
+
             for i in xrange(int(2. * np.pi / HALL_ANGLE)):
                 resources = vision.see_resources(TARGET_CUBE)
                 if TARGET_CUBE in resources and resources[TARGET_CUBE]:
                     print TARGET_CUBE, 'found!'
                 motors.turn_by(HALL_ANGLE)
-                odometry.add_angle(HALL_ANGLE)
+                particles.rotate(HALL_ANGLE)
 
         # resources = vision.see_resources(TARGET_CUBE)
         # if TARGET_CUBE in resources and resources[TARGET_CUBE]:
@@ -63,13 +64,13 @@ def S5_just_go(motors, sensors, vision):
         #         print TARGET_CUBE, 'found!'
         # motors.turn_by(HALL_ANGLE)
 
-def milestone2(sensors, motors, vision):
+def milestone2(sensors, motors, vision, particles):
     state = {
         'mode': 'S5_just_go'
     }
     while True:
         if state['mode'] == 'S5_just_go':
             log('S5_just_go')
-            S5_just_go(motors, sensors, vision)
+            S5_just_go(motors, sensors, vision, particles)
         else:
             raise Exception('Unknown state {0}'.format(state['mode']))
