@@ -45,29 +45,23 @@ class Vision:
         ]
         resources = {}
         # img = None
-        # detection_temp = None
-        for i in range(0, 1):
-            self.io.cameraGrab()
-            img = self.io.cameraRead()
-            for model_name in self.model_names:
-                print 'Checking', model_name
-                detection = self.cube_detectors[model_name].detect_cube(img)
-                if detection:
-                    print len(detection['p1'])
-                # if detection is not None:
-                #     for (x, y) in np.int32(detection['p1']):
-                #         cv2.circle(img, (x, y), 2, (0, 255, 255))
-                #         cv2.circle(img, get_mean(detection), 2, (255, 0, 0), 10)
-                #         self.io.imshow('Window', img)
-                # if detection:
-                #     detection_temp = detection
-                if detection is not None:
-                    self.detection_confirmers[model_name].add(detection['p1'])
-
+        self.io.cameraGrab()
+        img = self.io.cameraRead()
         for model_name in self.model_names:
-            resources[model_name] = self.detection_confirmers[model_name].get_result()
+            print 'Checking', model_name
+            detection = self.cube_detectors[model_name].detect_cube(img)
+            if detection:
+                print len(detection['p1'])
+                # for (x, y) in np.int32(detection['p1']):
+                #     cv2.circle(img, (x, y), 2, (0, 255, 255))
+                #     cv2.circle(img, get_mean(detection), 2, (255, 0, 0), 10)
+                #     self.io.imshow('Window', img)
+                resources[model_name] = {'mean': get_mean(detection), 'found': True}
+        # for model_name in self.model_names:
+        #     resources[model_name] = self.detection_confirmers[model_name].get_result()
+
         # if detection_temp:
-        #     print resources
+        #     # print resources
         #     for (x, y) in np.int32(detection_temp['p1']):
         #         cv2.circle(img, (x, y), 2, (0, 255, 255))
         #     if 'mario' in resources and resources['mario']:
@@ -75,3 +69,4 @@ class Vision:
         #     cv2.imshow('Window', img)
         #     cv2.waitKey(10)
         return resources
+

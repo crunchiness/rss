@@ -26,6 +26,23 @@ nodes = NODES_MILESTONE2_CORNERROOM
 #     '7': {'id': '7', 'room': 'A', 'y': 231-55,      'x': X_MAX-31,      'ambiguous': False, 'connects': ['6', '8']},
 #     '8': {'id': '8', 'room': 'A', 'y': 135,         'x': X_MAX-41,      'ambiguous': False, 'connects': ['7', '1']},
 # }
+def correct_orientation(mean, motors):
+    h = 7  # camera height
+    d = 24  # distance from center
+    field_of_view = np.pi / 3.  # degrees
+    width, height = (800., 600.)
+    x, y = mean
+    alpha = ((width / 2. - x) / width) * field_of_view
+    beta = ((height / 2. - y) / height) * field_of_view
+    if beta > 0:
+        return  # nonsense
+    else:
+        beta = -beta
+    numerator = h * np.tan(alpha)
+    denominator = h + d * np.tan(beta)
+    turn_angle = np.arctan(numerator / denominator)
+    log('Turning towards the cube by {} DEGREES (don\'t worry it\'s ok)'.format(turn_angle * 180. / np.pi))
+    motors.turn_by(turn_angle)
 
 def S5_just_go(motors, sensors, vision):
     odometry = OdometryLocalisation(X, Y, ANGLE)
@@ -38,7 +55,7 @@ def S5_just_go(motors, sensors, vision):
             node = nodes[key]
             x, y = (node['x'], node['y'])
             my_x, my_y, my_angle = odometry.get_coordinates()
-            log('I believe I am at pose: x={}, y={}, o={}'.format(my_x,my_y,my_angle))
+            log('I believe I am at pose: x={}, y={}, o={}'.format(my_x, my_y, my_angle))
             log('Going to node {}'.format(key))
             log('Node coordinates: x={}, y={}'.format(x, y))
             turn_angle = orientate({'x': x, 'y': y}, my_x, my_y, my_angle)
@@ -48,8 +65,16 @@ def S5_just_go(motors, sensors, vision):
             motors.go_forward(d)
             for i in xrange(int(2. * np.pi / HALL_ANGLE)):
                 resources = vision.see_resources(TARGET_CUBE)
-                if TARGET_CUBE in resources and resources[TARGET_CUBE]:
-                    print TARGET_CUBE, 'found!'
+                if TARGET_CUBE in resources and resources[TARGET_CUBE]['found']:
+                    log(TARGET_CUBE + ' found!')
+                    correct_orientation(resources[TARGET_CUBE]['mean'], motors)
+                    motors.move(100, 100)
+                    while sensors.get_ir_left_raw() > 15:
+                        pass
+                    motors.halt()
+                    log('I believe I captured {}'.format(TARGET_CUBE))
+                    while True:
+                        pass
                 motors.turn_by(HALL_ANGLE)
                 odometry.add_angle(HALL_ANGLE)
 
