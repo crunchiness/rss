@@ -68,3 +68,14 @@ NODES = {
     'L1': {'id': 'L1', 'room': 'C2', 'y': 310, 'x': 120, 'ambiguous': True, 'connects': ['I1', 'E2']},
     'L2': {'id': 'L2', 'room': 'C1', 'y': 215, 'x': 200, 'ambiguous': True, 'connects': ['I2', 'E1']}
 }
+
+NODES_MILESTONE2_CORNERROOM = {
+    '1': {'id': '1', 'room': 'A', 'y': 48,          'x': X_MAX-54,      'ambiguous': False, 'connects': ['2', '8']},
+    '2': {'id': '2', 'room': 'A', 'y': 31,          'x': X_MAX-177+40,  'ambiguous': False, 'connects': ['1', '3']},
+    '3': {'id': '3', 'room': 'A', 'y': 70,          'x': X_MAX-177+55,  'ambiguous': True,  'connects': ['2', '4']},
+    '4': {'id': '4', 'room': 'A', 'y': 231-46-61,   'x': X_MAX-113,     'ambiguous': True,  'connects': ['3', '5']},
+    '5': {'id': '5', 'room': 'A', 'y': 231-69,      'x': X_MAX-81,      'ambiguous': True,  'connects': ['4', '6']},
+    '6': {'id': '6', 'room': 'A', 'y': 231-40,      'x': X_MAX-93+38,   'ambiguous': True,  'connects': ['5', '7']},
+    '7': {'id': '7', 'room': 'A', 'y': 231-55,      'x': X_MAX-31,      'ambiguous': False, 'connects': ['6', '8']},
+    '8': {'id': '8', 'room': 'A', 'y': 135,         'x': X_MAX-41,      'ambiguous': False, 'connects': ['7', '1']},
+}
