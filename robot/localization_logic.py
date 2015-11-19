@@ -94,13 +94,13 @@ def wander(sensors, particles, motors, left_ir, right_ir, sonar, state, vision):
     while xy_conf < LOCALISATION_CONF:
 
         # localization - driving around avoiding obstacles
-        front_ir_reading = sensors.get_ir_left()
+        left_ir_reading = sensors.get_ir_left()
         right_ir_reading = sensors.get_ir_right()
         sonar_reading = sensors.get_sonar()
 
         # Update position via particle filter
         measurements = {
-            'IR_left': front_ir_reading if front_ir_reading is not None else 0,
+            'IR_left': left_ir_reading if left_ir_reading is not None else 0,
             'IR_right': right_ir_reading if right_ir_reading is not None else 0,
             'sonar': sonar_reading if sonar_reading is not None else 0,
         }
@@ -112,7 +112,7 @@ def wander(sensors, particles, motors, left_ir, right_ir, sonar, state, vision):
         particles.resample()
         x, y, o = particles.get_position_by_max_weight()
 
-        if front_ir_reading > 30 and right_ir_reading > 30:
+        if left_ir_reading > 15 and right_ir_reading > 15:
             # Move forwards 16.5 cm
             log('Going {}cm forward'.format(3*HALL_PERIMETER))
             motors.go_forward(3*HALL_PERIMETER)
@@ -126,14 +126,14 @@ def wander(sensors, particles, motors, left_ir, right_ir, sonar, state, vision):
             #     state['mode'] = 'travelling'
             #     return
 
-        if front_ir_reading <= 30:
-            log('Turning {} angles left'.format(2*HALL_ANGLE))
-            motors.turn_by(-2*HALL_ANGLE)
-            particles.rotate(-2*HALL_ANGLE * np.pi / 180.)
-        elif right_ir_reading <= 30:
+        if left_ir_reading <= 15:
             log('Turning {} angles right'.format(2*HALL_ANGLE))
             motors.turn_by(2*HALL_ANGLE)
-            particles.rotate(2*HALL_ANGLE * np.pi / 180.)
+            particles.rotate(2*HALL_ANGLE)
+        elif right_ir_reading <= 15:
+            log('Turning {} angles left'.format(2*HALL_ANGLE))
+            motors.turn_by(-2*HALL_ANGLE)
+            particles.rotate(-2*HALL_ANGLE)
 
 def travel(sensors, particles, motors, state, vision):
     """Loop for when we know what where we are, aka loop for travelling
@@ -187,7 +187,7 @@ def look_around(motors, sensors, front_ir, right_ir, sonar, particles, state, vi
     n = int(2.*np.pi/(multiple*HALL_ANGLE))
     for i in xrange(n):
         motors.turn_by((multiple*HALL_ANGLE))
-        particles.rotate((multiple*HALL_ANGLE)/180. * np.pi)
+        particles.rotate(multiple*HALL_ANGLE)
         front_ir_reading = sensors.get_ir_left()
         right_ir_reading = sensors.get_ir_right()
         sonar_reading = sensors.get_sonar()
