@@ -11,15 +11,15 @@ from robot.state.map import X_MAX, Y_MAX, ARENA_WALLS
 import utils
 from robot.utils import make_file_path, log
 
-ROTATION_STD_ABS = (5.0 / 360.0) * 2.0 * math.pi
-ROTATION_STD_FRAC = 0.2
-DRIFT_ROTATION_STD_ABS = (5.0 / 360.0) * 2.0 * math.pi
-FORWARD_STD_FRAC = 0.2
+ROTATION_STD_ABS = (1.0 / 360.0) * 2.0 * math.pi
+ROTATION_STD_FRAC = 0.05
+DRIFT_ROTATION_STD_ABS = (1.0 / 360.0) * 2.0 * math.pi
+FORWARD_STD_FRAC = 0.05
 # TODO FORWARD ABS ERROR
 # STD error of 1cm on every move of hall sensor
-FORWARD_STD_ABS = 3
+FORWARD_STD_ABS = 2
 
-BUFFER_ZONE_FROM_WALLS = 5
+BUFFER_ZONE_FROM_WALLS = 4
 
 SIZE_OF_BINS = 2
 NUMBER_OF_ANGLES = 256
@@ -34,7 +34,7 @@ ROBOT_EDGES = [
 
 SENSORS_LOCATIONS = {
     'IR_left':  {'location': [-9.5, 19.0], 'orientation': 0},
-    'IR_right': {'location': [ 9.5, 19.0], 'orientation': 0},
+    'IR_right': {'location': [ 9.0, 19.0], 'orientation': pi/2.0},
     'sonar': {'location': [3.5, -13.0], 'orientation': pi},
 }
 
@@ -68,7 +68,7 @@ else:
     log('Couldnt find DISTANCE_TO_CLOSEST_WALL_FILE: {}'.format(str(DISTANCE_TO_CLOSEST_WALL_FILE)))
 
 RAYCASTING_DISTANCES = None
-RAYCASTING_DISTANCES_FILE = make_file_path('data/') + 'raycasting_distances_SIZE_BIN_2_33degrees.npy'
+RAYCASTING_DISTANCES_FILE = make_file_path('data/') + 'raycasting_distances_SIZE_BIN_2_orthogonal_IRs.npy'
 if os.path.exists(RAYCASTING_DISTANCES_FILE):
     RAYCASTING_DISTANCES = np.load(RAYCASTING_DISTANCES_FILE).astype(np.uint8)
 else:
@@ -86,7 +86,7 @@ class Particles:
 
         log('Initiating particle filtering with setting where=' + str(where))
 
-        self.initialize_KLD(where, pose)
+        self.initiate_standard(where, pose)
 
         self.weights = np.ones(self.N, dtype=np.float32)
         self.weights = np.divide(self.weights, np.sum(self.weights))
@@ -148,7 +148,7 @@ class Particles:
         self.locations = np.array(new_locations).astype(np.int16)
         self.orientations = np.array(new_orientations).astype(np.float32)
 
-    def initiate_standard(self, where):
+    def initiate_standard(self, where, pose):
         if where == 'bases':
             a = (np.array([X_BASE_OFFSET, Y_BASE_OFFSET])
                  + np.multiply(np.array([X_BASE_LENGTH, Y_BASE_LENGTH]), np.random.rand(self.N/2, 2)))\
@@ -161,10 +161,20 @@ class Particles:
             self.locations = (np.array([X_BASE_OFFSET, Y_BASE_OFFSET])
                  + np.multiply(np.array([X_BASE_LENGTH, Y_BASE_LENGTH]), np.random.rand(self.N, 2)))\
                 .astype(np.int16)
+        elif where == 'set':
+            self.locations = (np.array([int(pose[0] - SET_POSITION_UNCERTAINTY), int(pose[1] - SET_POSITION_UNCERTAINTY)])
+                 + np.multiply(np.array([2.0 * SET_POSITION_UNCERTAINTY, 2.0 * SET_POSITION_UNCERTAINTY]), np.random.rand(self.N, 2)))\
+                .astype(np.int16)
         else:
             self.locations = np.multiply(np.array([X_MAX, Y_MAX],dtype=np.float32), np.random.rand(self.N, 2)).astype(np.int16)
 
-        self.orientations = np.multiply(np.array([2.0 * pi]), np.random.rand(self.N)).astype(np.float32)
+        if where == 'set':
+            self.orientations = np.add(
+                np.multiply(np.array([SET_ORIENTATION_UNCERTAINTY]), np.random.rand(self.N)).astype(np.float32),
+                np.array([pose[2]])
+            )
+        else:
+            self.orientations = np.multiply(np.array([2.0 * pi]), np.random.rand(self.N)).astype(np.float32)
 
     def get_position_by_average(self):
         """
@@ -336,7 +346,7 @@ class Particles:
         if ess > self.N * ESS_THRESHOLD:
             return
 
-        self.resample_KLD()
+        self.resample_standard()
 
     def resample_KLD(self):
         H = set()
@@ -449,21 +459,21 @@ class Particles:
         if RAYCASTING_DISTANCES is not None:
             return Particles.measurement_prediction_from_cache(location, orientation)
 
-        beam_IR_left = utils.at_orientation([0, MAX_BEAM_RANGE],
-                                          orientation + SENSORS_LOCATIONS['IR_left']['orientation'])
+        # beam_IR_left = utils.at_orientation([0, MAX_BEAM_RANGE],
+        #                                   orientation + SENSORS_LOCATIONS['IR_left']['orientation'])
         beam_IR_right = utils.at_orientation([0, MAX_BEAM_RANGE],
                                           orientation + SENSORS_LOCATIONS['IR_right']['orientation'])
-        beam_sonar = utils.at_orientation([0, MAX_BEAM_RANGE],
-                                          orientation + SENSORS_LOCATIONS['sonar']['orientation'])
-        IR_left = np.add(location,
-                       utils.at_orientation(SENSORS_LOCATIONS['IR_left']['location'],
-                                            orientation))
+        # beam_sonar = utils.at_orientation([0, MAX_BEAM_RANGE],
+        #                                   orientation + SENSORS_LOCATIONS['sonar']['orientation'])
+        # IR_left = np.add(location,
+        #                utils.at_orientation(SENSORS_LOCATIONS['IR_left']['location'],
+        #                                     orientation))
         IR_right = np.add(location,
                        utils.at_orientation(SENSORS_LOCATIONS['IR_right']['location'],
                                             orientation))
-        sonar = np.add(location,
-                       utils.at_orientation(SENSORS_LOCATIONS['sonar']['location'],
-                                            orientation))
+        # sonar = np.add(location,
+        #                utils.at_orientation(SENSORS_LOCATIONS['sonar']['location'],
+        #                                     orientation))
 
         # print 'Robot: ' + str(self.location(i)[0]) + ' ' + str(self.location(i)[1]) + ' ' + str(self.orientation(i))
         # print 'Sensors: ' + str(front) + str(right)
@@ -471,9 +481,9 @@ class Particles:
 
         # find distances along beams to the closest walls
         distances = {}
-        for sensor_location, beam, label in (IR_left, beam_IR_left, 'IR_left'), \
-                                            (IR_right, beam_IR_right, 'IR_right'),\
-                                            (sonar, beam_sonar, 'sonar'):
+        for sensor_location, beam, label in [(IR_right, beam_IR_right, 'IR_right')]:
+                                            # (IR_left, beam_IR_left, 'IR_left'), \
+                                            # (sonar, beam_sonar, 'sonar'):
             minimum_distance = MAX_BEAM_RANGE
             for wall in ARENA_WALLS:
                 intersection = utils.intersects_at(wall, (sensor_location, beam))
@@ -652,9 +662,9 @@ class Particles:
                 location = np.array([int(SIZE_OF_BINS * (x + 0.5)), int(SIZE_OF_BINS * (y + 0.5))]).astype(np.int16)
                 for angle_number in xrange(NUMBER_OF_ANGLES):
                     temp = Particles.measurement_prediction_explicit(location, angle_number * angle_increment)
-                    distances[x][y][angle_number][0] = temp['IR_left']
+                    # distances[x][y][angle_number][0] = temp['IR_left']
                     distances[x][y][angle_number][1] = temp['IR_right']
-                    distances[x][y][angle_number][2] = temp['sonar']
+                    # distances[x][y][angle_number][2] = temp['sonar']
 
         return distances
 
