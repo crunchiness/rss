@@ -81,11 +81,13 @@ def particles_measure_sense_resample(sensors, particles):
         'sonar': sonar_reading if sonar_reading is not None else 0,
     }
 
-    log('Measurement predictions: {}'
-    .format(particles.measurement_prediction_explicit(np.array([x, y]), o)))
+
     particles.sense(measurements)
     particles.resample()
-    particles.get_position_by_weighted_average()
+    x,y,o = particles.get_position_by_weighted_average()
+    log('Measurement predictions: {}'
+    .format(particles.measurement_prediction_explicit(np.array([x, y]), o)))
+    log('Measurements actual: {}'.format(measurements))
 
 def milestone2(sensors, motors, vision, particles):
     state = {
