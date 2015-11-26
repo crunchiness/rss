@@ -11,13 +11,13 @@ from robot.state.map import X_MAX, Y_MAX, ARENA_WALLS
 import utils
 from robot.utils import make_file_path, log
 
-ROTATION_STD_ABS = (1.0 / 360.0) * 2.0 * math.pi
+ROTATION_STD_ABS = (1.5 / 360.0) * 2.0 * math.pi
 ROTATION_STD_FRAC = 0.05
-DRIFT_ROTATION_STD_ABS = (1.0 / 360.0) * 2.0 * math.pi
+DRIFT_ROTATION_STD_ABS = (1.5 / 360.0) * 2.0 * math.pi
 FORWARD_STD_FRAC = 0.05
 # TODO FORWARD ABS ERROR
 # STD error of 1cm on every move of hall sensor
-FORWARD_STD_ABS = 2
+FORWARD_STD_ABS = 4
 
 BUFFER_ZONE_FROM_WALLS = 4
 

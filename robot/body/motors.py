@@ -27,7 +27,7 @@ class Motors:
         self.io = io
         self.sensors = sensors
         self.speed = 7.35492206953
-        self.turn_speed = 7.35492206953
+        self.turn_speed = 0.71630893893
         self.l = 0
         self.r = 0
 
@@ -72,8 +72,9 @@ class Motors:
                 time_spent = time.time() - start
                 if halt:
                     self.halt()
-                self.speed = float(revs) * float(HALL_PERIMETER) / float(time_spent)
-                log('Updated self.speed: {}'.format(self.speed))
+                if revs != 0:
+                    self.speed = float(revs) * float(HALL_PERIMETER) / float(time_spent)
+                    log('Updated self.speed: {}'.format(self.speed))
                 return
 
     def go_backward_revs(self, revs):
@@ -100,8 +101,9 @@ class Motors:
                 time_spent = time.time() - start
                 if halt:
                     self.halt()
-                self.turn_speed = float(revs) * float(HALL_ANGLE) / float(time_spent)
-                log('Updated self.turn_speed: {}'.format(self.turn_speed))
+                if revs != 0:
+                    self.turn_speed = float(revs) * float(HALL_ANGLE) / float(time_spent)
+                    log('Updated self.turn_speed: {}'.format(self.turn_speed))
                 return
 
     # TODO maybe something wrong with negative angle

@@ -3,9 +3,9 @@ from robot.body.motors import HALL_ANGLE, HALL_PERIMETER
 import numpy as np
 from odometry_localisation import OdometryLocalisation
 from utils import orientate, euclidean_distance
-from robot.state.map import NODES_MILESTONE2_CORNERROOM
+from robot.state.map import NODES_MILESTONE2_CORNERROOM, NODES_MILESTONE2_MIDDLEROOM
 
-TARGET_CUBE = 'watching'
+TARGET_CUBE = 'mario'
 DIST_CONST = 20
 X = 143+33
 Y = 77
@@ -46,8 +46,9 @@ def S5_just_go(motors, sensors, vision, particles):
             turn_angle = orientate({'x': x, 'y': y}, my_x, my_y, my_angle)
             log('Turn angle: {}'.format(turn_angle))
 
-            motors.turn_by(-turn_angle, full=True)
-            particles.rotate(-turn_angle)
+            #TODO full = ?
+            motors.turn_by(turn_angle, full=False)
+            particles.rotate(turn_angle)
             particles_measure_sense_resample(sensors, particles)
 
             d = euclidean_distance((x, y), (my_x, my_y))
