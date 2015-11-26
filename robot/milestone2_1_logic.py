@@ -12,21 +12,9 @@ Y = 77
 ANGLE = np.pi/2  # degrees
 
 nodes = NODES_MILESTONE2_CORNERROOM
-# nodes = [
-#     {'coord': (1, 2), 'angle': 70}
-# ]
-#
-# NODES_MILESTONE2_CORNERROOM = {
-#     '1': {'id': '1', 'room': 'A', 'y': 48,          'x': X_MAX-54,      'ambiguous': False, 'connects': ['2', '8']},
-#     '2': {'id': '2', 'room': 'A', 'y': 31,          'x': X_MAX-177+40,  'ambiguous': False, 'connects': ['1', '3']},
-#     '3': {'id': '3', 'room': 'A', 'y': 70,          'x': X_MAX-177+55,  'ambiguous': True,  'connects': ['2', '4']},
-#     '4': {'id': '4', 'room': 'A', 'y': 231-46-61,   'x': X_MAX-113,     'ambiguous': True,  'connects': ['3', '5']},
-#     '5': {'id': '5', 'room': 'A', 'y': 231-69,      'x': X_MAX-81,      'ambiguous': True,  'connects': ['4', '6']},
-#     '6': {'id': '6', 'room': 'A', 'y': 231-40,      'x': X_MAX-93+38,   'ambiguous': True,  'connects': ['5', '7']},
-#     '7': {'id': '7', 'room': 'A', 'y': 231-55,      'x': X_MAX-31,      'ambiguous': False, 'connects': ['6', '8']},
-#     '8': {'id': '8', 'room': 'A', 'y': 135,         'x': X_MAX-41,      'ambiguous': False, 'connects': ['7', '1']},
-# }
+
 def correct_orientation(mean, motors):
+    camera_orientation = 0.5 * np.pi  # pi/2 is pointing straight ahead, 0 is pointing to the ground
     h = 7  # camera height
     d = 24  # distance from center
     field_of_view = np.pi / 3.  # degrees
@@ -34,12 +22,9 @@ def correct_orientation(mean, motors):
     x, y = mean
     alpha = ((width / 2. - x) / width) * field_of_view
     beta = ((height / 2. - y) / height) * field_of_view
-    if beta > 0:
-        return  # nonsense
-    else:
-        beta = -beta
-    numerator = h * np.tan(alpha)
-    denominator = h + d * np.tan(beta)
+    beta_ = camera_orientation + beta
+    numerator = h * np.tan(alpha) * np.tan(beta_)
+    denominator = h * np.tan(beta_) + d
     turn_angle = np.arctan(numerator / denominator)
     log('Turning towards the cube by {} DEGREES (don\'t worry it\'s ok)'.format(turn_angle * 180. / np.pi))
     motors.turn_by(turn_angle)
@@ -47,7 +32,6 @@ def correct_orientation(mean, motors):
 def S5_just_go(motors, sensors, vision, particles):
     motors.go_forward(15*HALL_PERIMETER)
     particles.forward(15*HALL_PERIMETER)
-    particles_measure_sense_resample(sensors, particles)
     particles_measure_sense_resample(sensors, particles)
     while True:
         # ir_left = sensors.get_ir_left()
