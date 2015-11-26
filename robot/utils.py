@@ -199,8 +199,10 @@ def determine_room(x, y):
         else:
             return 'F'
 
+
 def log(text):
-    print (datetime.datetime.now().strftime('%H:%M:%S') + ' - ' + str(text))
+    print (u'{0} ::: {1}'.format(datetime.datetime.now().strftime('%H:%M:%S'), text))
+
 
 def collect_front_IR_and_sonar_measurements(io, ok):
     sensors = Sensors(io)
