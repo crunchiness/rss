@@ -197,8 +197,7 @@ def look_around(motors, sensors, front_ir, right_ir, sonar, particles, state, vi
             'sonar': sonar_reading if sonar_reading is not None else 0,
         }
 
-        log('Measurements: {}'
-        .format(particles.measurement_prediction_explicit(np.array([x, y]), o)))
+        log('Measurements: {}'.format(particles.measurement_prediction_explicit(np.array([x, y]), o)))
 
         particles.sense(measurements)
         particles.resample()

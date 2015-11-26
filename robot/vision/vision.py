@@ -52,11 +52,11 @@ class Vision:
             detection = self.cube_detectors[model_name].detect_cube(img)
             if detection:
                 print len(detection['p1'])
-                # for (x, y) in np.int32(detection['p1']):
-                #     cv2.circle(img, (x, y), 2, (0, 255, 255))
-                #     cv2.circle(img, get_mean(detection), 2, (255, 0, 0), 10)
-                #     self.io.imshow('Window', img)
-                resources[model_name] = {'mean': get_mean(detection), 'found': len(detection) > 20}
+                for (x, y) in np.int32(detection['p1']):
+                    cv2.circle(img, (x, y), 2, (0, 255, 255))
+                    cv2.circle(img, get_mean(detection), 2, (255, 0, 0), 10)
+                    self.io.imshow('Window', img)
+                resources[model_name] = {'mean': get_mean(detection), 'found': True}
         # for model_name in self.model_names:
         #     resources[model_name] = self.detection_confirmers[model_name].get_result()
 
