@@ -13,21 +13,26 @@ ANGLE = np.pi/2  # degrees
 
 nodes = NODES_MILESTONE2_CORNERROOM
 
+
 def correct_orientation(mean, motors):
-    camera_orientation = 0.5 * np.pi  # pi/2 is pointing straight ahead, 0 is pointing to the ground
-    h = 7  # camera height
-    d = 24  # distance from center
-    field_of_view = np.pi / 3.  # degrees
-    width, height = (800., 600.)
+    w, h = (800.0, 600.0)
+    d = np.sqrt(w * w + h * h)  # diagonal
+    camera_angle = 0.5 * np.pi  # pi/2 is pointing straight ahead, 0 is pointing to the ground
+    height = 7  # camera height
+    distance = 24  # distance from center of the robot
+    diagonal_fov = np.pi / 3.0  # field of view
+    vertical_fov = 2 * np.arctan((h / d) * np.tan(diagonal_fov / 2.0))
+    horizontal_fov = 2 * np.arctan((w / d) * np.tan(diagonal_fov / 2.0))
     x, y = mean
-    alpha = ((width / 2. - x) / width) * field_of_view
-    beta = ((height / 2. - y) / height) * field_of_view
-    beta_ = camera_orientation + beta
-    numerator = h * np.tan(alpha) * np.tan(beta_)
-    denominator = h * np.tan(beta_) + d
+    alpha = ((w / 2. - x) / w) * horizontal_fov
+    beta = ((h / 2. - y) / h) * vertical_fov
+    gamma = camera_angle + beta
+    numerator = height * np.tan(alpha) * np.tan(gamma)
+    denominator = height * np.tan(gamma) + distance
     turn_angle = np.arctan(numerator / denominator)
-    log('Turning towards the cube by {} DEGREES (don\'t worry it\'s ok)'.format(turn_angle * 180. / np.pi))
+    log(u'Turning towards the cube by {0:.2f}\N{DEGREE SIGN}'.format(round(turn_angle * 180. / np.pi, 2)))
     motors.turn_by(turn_angle)
+
 
 def S5_just_go(motors, sensors, vision, particles):
     motors.go_forward(15*HALL_PERIMETER)
