@@ -16,7 +16,10 @@ class CubeDetector:
     def __init__(self, which, path=None):
         self.path = path
         self.which = which
-        self.detector = cv2.ORB_create(nfeatures=5000)
+        try:
+            self.detector = cv2.ORB_create(nfeatures=5000)
+        except AttributeError:
+            self.detector = cv2.ORB(nfeatures=5000)
         self.model = self.load_cube_model()
         self.matcher = self.init_matcher()
 

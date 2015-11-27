@@ -4,6 +4,7 @@ import numpy as np
 from odometry_localisation import OdometryLocalisation
 from utils import orientate, euclidean_distance
 from robot.state.map import NODES_MILESTONE2_CORNERROOM, NODES_MILESTONE2_MIDDLEROOM
+from vision.calculations import correct_orientation_angle
 
 TARGET_CUBE = 'mario'
 DIST_CONST = 20
@@ -15,22 +16,8 @@ nodes = NODES_MILESTONE2_CORNERROOM
 
 
 def correct_orientation(mean, motors):
-    w, h = (800.0, 600.0)
-    d = np.sqrt(w * w + h * h)  # diagonal
-    camera_angle = 0.5 * np.pi  # pi/2 is pointing straight ahead, 0 is pointing to the ground
-    height = 7  # camera height
-    distance = 24  # distance from center of the robot
-    diagonal_fov = np.pi / 3.0  # field of view
-    vertical_fov = 2 * np.arctan((h / d) * np.tan(diagonal_fov / 2.0))
-    horizontal_fov = 2 * np.arctan((w / d) * np.tan(diagonal_fov / 2.0))
-    x, y = mean
-    alpha = ((w / 2. - x) / w) * horizontal_fov
-    beta = ((h / 2. - y) / h) * vertical_fov
-    gamma = camera_angle + beta
-    numerator = height * np.tan(alpha) * np.tan(gamma)
-    denominator = height * np.tan(gamma) + distance
-    turn_angle = np.arctan(numerator / denominator)
-    log(u'Turning towards the cube by {0:.2f}\N{DEGREE SIGN}'.format(round(turn_angle * 180. / np.pi, 2)))
+    turn_angle = correct_orientation_angle(mean, (800.0, 600.0))
+    log(u'Turning towards the resource by {0:.2f}\N{DEGREE SIGN}'.format(round(turn_angle * 180. / np.pi, 2)))
     motors.turn_by(turn_angle)
 
 
