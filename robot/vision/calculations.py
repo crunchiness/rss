@@ -1,6 +1,8 @@
 import numpy as np
 from robot.vision import constants as vision
 
+class NonsenseAngleError(Exception):
+    pass
 
 def bottom_point(turn_angle, screen_width):
     """
@@ -29,4 +31,7 @@ def correct_orientation_angle((x, y), (screen_width, screen_height)):
     gamma = camera_angle + beta
     numerator = vision.HEIGHT * np.tan(alpha) * np.tan(gamma)
     denominator = vision.HEIGHT * np.tan(gamma) + vision.DISTANCE
-    return np.arctan(numerator / denominator)
+    turn_angle = np.arctan(numerator / denominator)
+    if abs(turn_angle) > 27.0 * np.pi / 180.0:
+        raise NonsenseAngleError
+    return turn_angle

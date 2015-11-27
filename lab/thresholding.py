@@ -17,6 +17,7 @@ thresholds = {
     'upper_val': 255
 }
 
+
 def video(a, b):
     def make_mask(image):
         if thresholds['lower_hue'] > thresholds['upper_hue']:
