@@ -26,6 +26,8 @@ BUFFER_ZONE_FROM_WALLS = 4
 SIZE_OF_BINS = 2
 NUMBER_OF_ANGLES = 256
 
+MAX_IR_RANGE = 100.0
+
 RANDOM_PART_OF_RESAMPLING = 0.0
 
 # edge r to r+s, tuples in the (r, s) format, not (r, r+s)
@@ -51,7 +53,7 @@ Y_BASE_LENGTH = 44
 
 UNEXPECTED_DECAY_CONST_IR = 0.017801905399325038
 UNEXPECTED_DECAY_CONST_SONAR = 0.01813218480166167
-PROB_HIT_STD_IR = 20.0
+PROB_HIT_STD_IR_VOLTAGE = 20.0
 PROB_HIT_STD_SONAR = 35.0
 
 KLD_Z_DELTA = 2.23 # for delta = 0.1
@@ -313,8 +315,9 @@ class Particles:
         """Moves the particles backward"""
         self.forward(-distance)
 
-    def sense(self, measurements):
-        log('Measurements inside sense(): {}'.format(measurements))
+    def sense(self, measurements_in_voltage):
+        measurements_in_voltage = self.sensors.get_irs_raw()
+        log('Measurements inside sense(): {}'.format(measurements_in_voltage))
         """Sensing"""
         probabilities = np.ones(self.N, dtype=np.float32)
         #TODO possibly add third column here for sonar
@@ -352,6 +355,12 @@ class Particles:
 
         expected = RAYCASTING_DISTANCES[x][y][orientations_bins]
 
+
+        #expected[(expected > MAX_IR_RANGE)] = MAX_IR_RANGE
+        # or expected = np.max(expected, MAX_IR_RANGE)
+
+        expected = np.add(np.divide(4800.0, expected.astype(np.float32)), 20.0)
+
         # for i in xrange(self.N):
         #     location = self.location(i)
         #     if X_MAX <= location[0] or location[0] <= 0 or \
@@ -362,16 +371,16 @@ class Particles:
         #         if DISTANCE_TO_CLOSEST_WALL[location[0]][location[1]] <= BUFFER_ZONE_FROM_WALLS:
         #             probabilities[i] *= 0.01
 
-        measurements = np.array([measurements['IR_left'], measurements['IR_right']], dtype=np.float32)
+        measurements_in_voltage = np.array([measurements_in_voltage['IR_left'], measurements_in_voltage['IR_right']], dtype=np.float32)
 
         probabilities = np.exp(
             np.divide(
-                np.negative(np.power(np.subtract(expected, measurements),2)),
-                np.power(PROB_HIT_STD_IR, 2) / 2.0
+                np.negative(np.power(np.subtract(expected, measurements_in_voltage),2)),
+                np.power(PROB_HIT_STD_IR_VOLTAGE, 2) / 2.0
             ))
         probabilities = np.divide(
             probabilities,
-            np.sqrt(2.0 * np.pi * (PROB_HIT_STD_IR ** 2))
+            np.sqrt(2.0 * np.pi * (PROB_HIT_STD_IR_VOLTAGE ** 2))
         )
 
         self.weights = np.multiply(self.weights, probabilities)
@@ -599,8 +608,8 @@ class Particles:
         measurement = float(measurement)
         predicted = float(predicted)
 
-        prob_hit = math.exp(-(measurement - predicted) ** 2 / (PROB_HIT_STD_IR ** 2) / 2.0) \
-                       / math.sqrt(2.0 * math.pi * (PROB_HIT_STD_IR ** 2))
+        prob_hit = math.exp(-(measurement - predicted) ** 2 / (PROB_HIT_STD_IR_VOLTAGE ** 2) / 2.0) \
+                       / math.sqrt(2.0 * math.pi * (PROB_HIT_STD_IR_VOLTAGE ** 2))
 
         if measurement < predicted:
             prob_unexpected = UNEXPECTED_DECAY_CONST_IR * math.exp(-UNEXPECTED_DECAY_CONST_IR * measurement) \
