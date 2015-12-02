@@ -216,6 +216,8 @@ class Particles:
         """
         i = np.argmax(self.weights)
 
+        print(self.locations[i])
+
         x_approx, y_approx = self.locations[i]
         o_approx = self.orientations[i]
 
@@ -285,6 +287,7 @@ class Particles:
         # rotation_inferred = random.gauss(0, ROTATION_STD_ABS)
         # orientation = (self.orientation + rotation_inferred) % (2.0 * math.pi)
 
+
         orientations = np.add(
             np.multiply(
                 np.random.normal(size=self.N),
@@ -303,11 +306,16 @@ class Particles:
             ),
             distance
         )
+        vectors = np.multiply(orientations, distances)
+        vectors = np.array([
+            np.multiply(np.abs(vectors), np.cos(np.angle(vectors))),
+            np.multiply(np.abs(vectors), np.sin(np.angle(vectors)))
+        ]).T
 
         self.locations =\
             np.add(
                 self.locations,
-                np.multiply(orientations, distances)
+                vectors
             ).astype(np.int16)
         #self.orientations = orientations
 
@@ -316,20 +324,29 @@ class Particles:
         self.forward(-distance)
 
     def sense(self, measurements_in_voltage):
-        measurements_in_voltage = self.sensors.get_irs_raw()
-        log('Measurements inside sense(): {}'.format(measurements_in_voltage))
-        """Sensing"""
-        probabilities = np.ones(self.N, dtype=np.float32)
-        #TODO possibly add third column here for sonar
-        expected = np.zeros(self.locations.shape, dtype=np.uint8)
 
+        # log('Measurements inside sense(): {}'.format(measurements_in_voltage))
+        """Sensing"""
+        #TODO possibly add third column here for sonar
+
+        # log('positions: {}'.format(self.locations.T))
         x = np.divide(self.locations.T[0], SIZE_OF_BINS).astype(np.uint16)
         y = np.divide(self.locations.T[1], SIZE_OF_BINS).astype(np.uint16)
-        x = np.min(x, int(X_MAX/SIZE_OF_BINS)-1)
-        y = np.min(y, int(Y_MAX/SIZE_OF_BINS)-1)
+        x2 = np.ones((2, self.N))
+        y2 = np.ones((2, self.N))
+        x2[0,:] = x
+        x2[1,:] = np.multiply(np.ones(x.shape),int(X_MAX/SIZE_OF_BINS)-1)
+        y2[0,:] = y
+        y2[1,:] = np.multiply(np.ones(x.shape),int(Y_MAX/SIZE_OF_BINS)-1)
+        x = np.min(x2, axis=0).astype(np.uint16)
+        y = np.min(y2, axis=0).astype(np.uint16)
+
+        # log('xy bins: {}\n{}'.format(x, y))
 
         increment = 2.0*pi/NUMBER_OF_ANGLES
         orientations_bins = np.divide(np.mod(np.add(self.orientations, 0.5*increment), (2.0 * pi)),increment).astype(np.uint16)
+
+        # log('o bins: {}'.format(orientations_bins))
 
         #version nonvectorized
         # for i in xrange(self.N):
@@ -343,23 +360,43 @@ class Particles:
         #         expected[i] = RAYCASTING_DISTANCES[x[i]][y[i]][orientations_bins[i]]
 
         #version vectorized
-        indices = (DISTANCE_TO_CLOSEST_WALL[self.locations.T[0]][self.locations.T[1]] <= BUFFER_ZONE_FROM_WALLS)
-        probabilities[indices] = 0.01
+        probabilities_init = np.ones(self.N)
 
-        indices = \
-        (X_MAX <= self.locations.T[0] or
-         self.locations.T[0] <= 0 or
-         Y_MAX <= self.locations.T[1] or
-         self.locations.T[1] <= 0)
-        probabilities[indices] = 0.0
+        #TODO maybe fix
+        # indices = (DISTANCE_TO_CLOSEST_WALL[self.locations.T[0]][self.locations.T[1]] <= BUFFER_ZONE_FROM_WALLS)
+        # print(indices)
+        # probabilities_init[indices] = 0.01
+        #
+        # indices = \
+        # (X_MAX <= self.locations.T[0] or
+        #  self.locations.T[0] <= 0 or
+        #  Y_MAX <= self.locations.T[1] or
+        #  self.locations.T[1] <= 0)
+        # probabilities_init[indices] = 0.0
 
-        expected = RAYCASTING_DISTANCES[x][y][orientations_bins]
+        # log('len of RAYCASTING_DISTANCES: {}'.format(len(RAYCASTING_DISTANCES[0])))
+        # vs = np.vstack((
+        #     x,
+        #     np.add(len(RAYCASTING_DISTANCES[0]),y),
+        #     np.add(2*len(RAYCASTING_DISTANCES),orientations_bins))).T
+        expected = RAYCASTING_DISTANCES[x,y,orientations_bins]
+        # log('first record in vstack: {}'.format(vs[0]))
+        # log('indeces from RAYCASTING: {}'.format(vs))
+        # log('first index: {} {} {}'.format(x[0],y[0],orientations_bins[0]))
+        # log('first index in RAYCASTING: {}'.format(RAYCASTING_DISTANCES[x[0]][y[0]][orientations_bins[0]]))
+        # log('000 index in RAYCASTING: {}'.format(RAYCASTING_DISTANCES[0][0][0]))
+        # log('[x,y,o] index in RAYCASTING: {}'.format())
+        #log('000 index with np.take in RAYCASTING: {}'.format(np.take(RAYCASTING_DISTANCES, np.array([0,len(x),2*len(x)]), axis=0)))
+        expected[expected == 0] = 1.0
+        expected = np.delete(expected, 2, 1)
+        # log('expected distances: {}'.format(expected))
 
 
         #expected[(expected > MAX_IR_RANGE)] = MAX_IR_RANGE
         # or expected = np.max(expected, MAX_IR_RANGE)
 
         expected = np.add(np.divide(4800.0, expected.astype(np.float32)), 20.0)
+        # log('expected voltages: {}'.format(expected))
 
         # for i in xrange(self.N):
         #     location = self.location(i)
@@ -373,6 +410,7 @@ class Particles:
 
         measurements_in_voltage = np.array([measurements_in_voltage['IR_left'], measurements_in_voltage['IR_right']], dtype=np.float32)
 
+
         probabilities = np.exp(
             np.divide(
                 np.negative(np.power(np.subtract(expected, measurements_in_voltage),2)),
@@ -382,6 +420,7 @@ class Particles:
             probabilities,
             np.sqrt(2.0 * np.pi * (PROB_HIT_STD_IR_VOLTAGE ** 2))
         )
+        probabilities = np.prod(probabilities, axis=1)
 
         self.weights = np.multiply(self.weights, probabilities)
         self.weights = np.divide(self.weights, np.sum(self.weights))
@@ -847,7 +886,7 @@ class Robot:
                                utils.at_orientation([0, 1], orientation) * forward_inferred)
 
     def measurement_prediction(self):
-        return Particles.measurement_prediction_explicit(self.location, self.orientation)
+        return {k:(4800/(float(v)+1)+20) for (k, v) in Particles.measurement_prediction_explicit(self.location, self.orientation).iteritems()}
 
     def measurement_probability(self, measurements, predictions):
         return Particles.measurement_probability(measurements, predictions)

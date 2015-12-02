@@ -96,18 +96,11 @@ def wander(sensors, particles, motors, left_ir, right_ir, sonar, state, vision):
         # localization - driving around avoiding obstacles
         left_ir_reading = sensors.get_ir_left()
         right_ir_reading = sensors.get_ir_right()
-        sonar_reading = sensors.get_sonar()
 
         # Update position via particle filter
-        measurements = {
-            'IR_left': left_ir_reading if left_ir_reading is not None else 0,
-            'IR_right': right_ir_reading if right_ir_reading is not None else 0,
-            'sonar': sonar_reading if sonar_reading is not None else 0,
-        }
-
         log('Measurement predictions: {}'
         .format(particles.measurement_prediction_explicit(np.array([x, y]), o)))
-        particles.sense(measurements)
+        particles.sense(sensors.get_irs_raw())
         particles.resample()
         x, y, o = particles.get_position_by_max_weight()
 
@@ -163,10 +156,7 @@ def travel(sensors, particles, motors, state, vision):
 
             front_ir_reading = sensors.get_ir_left()
             right_ir_reading = sensors.get_ir_right()
-            particles.sense({
-                'IR_left': front_ir_reading,
-                'IR_right': right_ir_reading
-            })
+            particles.sense(sensors.get_irs_raw())
             x, y, o, xy_conf = particles.get_position_by_weighted_average()
             particles.resample()
             if xy_conf < LOCALISATION_CONF_BREAK:
@@ -187,19 +177,17 @@ def look_around(motors, sensors, front_ir, right_ir, sonar, particles, state, vi
     for i in xrange(n):
         motors.turn_by((multiple*HALL_ANGLE))
         particles.rotate(multiple*HALL_ANGLE)
-        front_ir_reading = sensors.get_ir_left()
-        right_ir_reading = sensors.get_ir_right()
-        sonar_reading = sensors.get_sonar()
-
-        measurements = {
-            'IR_left': front_ir_reading if front_ir_reading is not None else 0,
-            'IR_right': right_ir_reading if right_ir_reading is not None else 0,
-            'sonar': sonar_reading if sonar_reading is not None else 0,
-        }
+        # front_ir_reading = sensors.get_ir_left()
+        # right_ir_reading = sensors.get_ir_right()
+        #
+        # measurements = {
+        #     'IR_left': front_ir_reading if front_ir_reading is not None else 0,
+        #     'IR_right': right_ir_reading if right_ir_reading is not None else 0
+        # }
 
         log('Measurements: {}'.format(particles.measurement_prediction_explicit(np.array([x, y]), o)))
 
-        particles.sense(measurements)
+        particles.sense(sensors.get_irs_raw())
         particles.resample()
         x, y, o = particles.get_position_by_weighted_average()
         particles.get_position_by_max_weight()

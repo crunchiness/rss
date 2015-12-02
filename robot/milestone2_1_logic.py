@@ -88,8 +88,7 @@ def particles_measure_sense_resample(sensors, particles):
         'sonar': sonar_reading if sonar_reading is not None else 0,
     }
 
-
-    particles.sense(measurements)
+    particles.sense(sensors.get_irs_raw())
     particles.resample()
     x,y,o = particles.get_position_by_weighted_average()
     log('Measurement predictions: {}'
