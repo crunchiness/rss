@@ -14,7 +14,7 @@ HALL_SENSOR_CHANGES_FOR_REVOLUTION = 2
 DIAMETER = 16.0  # distance between (the middle of) wheels
 WHEEL = 8.3  # wheel diameter
 WHEEL_PERIMETER = WHEEL * pi  # because diameter
-HALL_REVS_TO_WHEEL_REVS = 0.2
+HALL_REVS_TO_WHEEL_REVS = 1.0/25.0
 HALL_PERIMETER = HALL_REVS_TO_WHEEL_REVS * WHEEL_PERIMETER
 HALL_ANGLE = HALL_PERIMETER / (0.5 * DIAMETER)
 
@@ -84,6 +84,8 @@ class Motors:
     def turn_by_revs(self, revs, halt=True):
         log('Turning by revs: {}'.format(revs))
 
+        revs = -revs
+
         previous_hall = self.sensors.get_hall_sensor()
         changes = 0
 
@@ -116,7 +118,7 @@ class Motors:
         :return: if true, value interpreted as radians otherwise degrees (default)
         """
 
-        value = float(value)
+        value = -float(value)
 
         value += self.hall_offset * HALL_ANGLE
 

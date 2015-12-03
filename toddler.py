@@ -38,9 +38,10 @@ class Toddler:
     # It has its dedicated thread so you can keep block it.
     def Control(self, ok):
         while ok():
-            # self.motors.turn_by(-2.08475634515, full=False)
-            # self.stop()
-            milestone2(self.sensors, self.motors, self.vision, self.particles)
+            self.motors.turn_by_revs(1)
+            # self.motors.go_forward_revs(1)
+            self.stop()
+            #milestone2(self.sensors, self.motors, self.vision, self.particles)
             # perform_basic_milestone(self.sensors, self.motors)
             # wander_and_travel(self.sensors, self.particles, self.motors, self.vision)
             # collect_front_IR_and_sonar_measurements(self.io)

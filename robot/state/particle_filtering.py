@@ -12,14 +12,15 @@ import numpy as np
 from robot.state.map import X_MAX, Y_MAX, ARENA_WALLS
 import utils
 from robot.utils import make_file_path, log
+from robot.body.motors import HALL_PERIMETER, HALL_ANGLE
 
-ROTATION_STD_ABS = (5 / 360.0) * 2.0 * math.pi
-ROTATION_STD_FRAC = 0.07
-DRIFT_ROTATION_STD_ABS = (5 / 360.0) * 2.0 * math.pi
-FORWARD_STD_FRAC = 0.07
+ROTATION_STD_ABS = HALL_ANGLE
+# ROTATION_STD_FRAC = 0.07
+DRIFT_ROTATION_STD_ABS = HALL_ANGLE
+# FORWARD_STD_FRAC = 0.07
 # TODO FORWARD ABS ERROR
 # STD error of 1cm on every move of hall sensor
-FORWARD_STD_ABS = 4
+FORWARD_STD_ABS = HALL_PERIMETER
 
 BUFFER_ZONE_FROM_WALLS = 4
 
@@ -878,7 +879,7 @@ class Robot:
         """
         Infers true coordinates and pose after forwards/backwards movement (draws from gaussian)
         """
-        forward_inferred = random.gauss(distance, FORWARD_STD_FRAC * distance)
+        forward_inferred = random.gauss(distance, FORWARD_STD_ABS)
         # taking into account possible unintended rotation
         rotation_inferred = random.gauss(0, DRIFT_ROTATION_STD_ABS)
         orientation = (self.orientation + rotation_inferred) % (2.0 * math.pi)
