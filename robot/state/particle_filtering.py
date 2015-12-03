@@ -11,10 +11,10 @@ from robot.state.map import X_MAX, Y_MAX, ARENA_WALLS
 import utils
 from robot.utils import make_file_path, log
 
-ROTATION_STD_ABS = (1.5 / 360.0) * 2.0 * math.pi
-ROTATION_STD_FRAC = 0.05
-DRIFT_ROTATION_STD_ABS = (1.5 / 360.0) * 2.0 * math.pi
-FORWARD_STD_FRAC = 0.05
+ROTATION_STD_ABS = (5 / 360.0) * 2.0 * math.pi
+ROTATION_STD_FRAC = 0.07
+DRIFT_ROTATION_STD_ABS = (5 / 360.0) * 2.0 * math.pi
+FORWARD_STD_FRAC = 0.07
 # TODO FORWARD ABS ERROR
 # STD error of 1cm on every move of hall sensor
 FORWARD_STD_ABS = 4
@@ -540,14 +540,15 @@ class Particles:
         :return: probability of measurements
         """
 
-        weights = np.array([1, 1, 0.3], dtype=np.float32)
-        weights = weights/np.sum(weights)
+        # weights = np.array([1, 1, 0], dtype=np.float32)
+        # weights = weights/np.sum(weights)
         probabilities = np.array([self.measurement_prob_ir(measurements['IR_left'], predictions['IR_left']),
-                                  self.measurement_prob_ir(measurements['IR_right'], predictions['IR_right']),
-                                  self.measurement_prob_sonar(measurements['sonar'], predictions['sonar'])],
+                                  self.measurement_prob_ir(measurements['IR_right'], predictions['IR_right'])],
                                  dtype=np.float32)
-        probability = np.dot(weights, probabilities)
-        # probability = np.prod(probabilities)
+                                  #self.measurement_prob_sonar(measurements['sonar'], predictions['sonar'])],
+
+        # probability = np.dot(weights, probabilities)
+        probability = np.prod(probabilities)
 
         return probability
 

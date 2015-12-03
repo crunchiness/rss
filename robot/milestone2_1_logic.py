@@ -8,17 +8,24 @@ from robot.state.map import NODES_MILESTONE2_CORNERROOM, NODES_MILESTONE2_MIDDLE
 TARGET_CUBE = 'mario'
 DIST_CONST = 20
 
-nodes = NODES_MILESTONE2_MIDDLEROOM
+# nodes = NODES_MILESTONE2_MIDDLEROOM
+nodes = NODES_MILESTONE2_CORNERROOM
 
 def S5_just_go(motors, sensors, vision, particles):
     particles_measure_sense_resample(sensors, particles)
     # motors.go_forward(15*HALL_PERIMETER)
     # particles.forward(15*HALL_PERIMETER)
     # particles_measure_sense_resample(sensors, particles)
+
+    motors.turn_by(5./2.*np.pi)
+    particles.rotate(5./2.*np.pi)
+
+    particles_measure_sense_resample(sensors, particles)
+
     while True:
         # ir_left = sensors.get_ir_left()
         # ir_right = sensors.get_ir_right()
-        for key in sorted(nodes.keys()):
+        for key in ['5', '7', '8', '1', '2', '3', '4', '5']:
             node = nodes[key]
             x, y = (node['x'], node['y'])
             my_x, my_y, my_angle = particles.get_position_by_weighted_average()
@@ -33,6 +40,22 @@ def S5_just_go(motors, sensors, vision, particles):
             particles.rotate(turn_angle)
             particles_measure_sense_resample(sensors, particles)
 
+            # d = euclidean_distance((x, y), (my_x, my_y))
+            # d2 = d / 2.0
+            # motors.go_forward(d2)
+            # particles.forward(d2)
+            #
+            # particles_measure_sense_resample(sensors, particles)
+            # my_x, my_y, my_angle = particles.get_position_by_weighted_average()
+            # log('I believe I am at pose: x={}, y={}, o={}'.format(my_x,my_y,my_angle))
+            # log('Going to node {}'.format(key))
+            # log('Node coordinates: x={}, y={}'.format(x, y))
+            # turn_angle = orientate({'x': x, 'y': y}, my_x, my_y, my_angle)
+            #
+            # motors.turn_by(turn_angle, full=False)
+            # particles.rotate(turn_angle)
+            # particles_measure_sense_resample(sensors, particles)
+
             d = euclidean_distance((x, y), (my_x, my_y))
 
             motors.go_forward(d)
@@ -43,17 +66,18 @@ def S5_just_go(motors, sensors, vision, particles):
                 resources = vision.see_resources(TARGET_CUBE)
                 if TARGET_CUBE in resources and resources[TARGET_CUBE]['found']:
                     log(TARGET_CUBE + ' found!')
-                    correct_orientation(resources[TARGET_CUBE]['mean'], motors)
-                    motors.move(100, 100)
-                    while sensors.get_ir_left_raw() > 15:
-                        pass
-                    motors.halt()
+                    # correct_orientation(resources[TARGET_CUBE]['mean'], motors)
+                    # motors.move(100, 100)
+                    # while sensors.get_ir_left_raw() > 15:
+                    #     pass
+                    # motors.halt()
+                    motors.go_forward_revs(5)
                     log('I believe I captured {}'.format(TARGET_CUBE))
                     while True:
                         pass
                 motors.turn_by(HALL_ANGLE)
                 particles.rotate(HALL_ANGLE)
-                # particles_measure_sense_resample(sensors, particles)
+                particles_measure_sense_resample(sensors, particles)
 
         # resources = vision.see_resources(TARGET_CUBE)
         # if TARGET_CUBE in resources and resources[TARGET_CUBE]:

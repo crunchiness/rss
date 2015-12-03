@@ -16,7 +16,8 @@ import numpy as np
 
 POSE_MY_PARTICLES = [162, Y_MAX-108, 3.0/2.0*np.pi]
 POSE_TEST_CORNERROOM = [143+18, 77, np.pi/2.]
-POSE_TEST_MIDDLEROOM = [X_MAX-71, Y_MAX-(132+15), np.pi/2.]
+POSE_TEST_MIDDLEROOM = [X_MAX-71, Y_MAX-(132+39), np.pi/2.]
+POSE_TEST_MILESTONE2 = [X_MAX-110, 231-46-50, 0]
 
 # TODO: sanity check jumping between rooms
 # TODO: DITTO WHAT YOU MEAN BRO, COMPLETELY SANE
@@ -27,7 +28,7 @@ class Toddler:
         self.sensors = Sensors(io)
         self.motors = Motors(io, self.sensors)
         self.vision = Vision(io)
-        self.particles = Particles(n=200, where='set', drawing=Drawing(), pose=POSE_TEST_MIDDLEROOM)
+        self.particles = Particles(n=250, where='set', drawing=Drawing(), pose=POSE_TEST_MILESTONE2)
 
     def stop(self):
         """For development only"""

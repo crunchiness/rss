@@ -27,9 +27,10 @@ class Motors:
         self.io = io
         self.sensors = sensors
         self.speed = 7.35492206953
-        self.turn_speed = 0.71630893893
+        self.turn_speed = 0.67319703272
         self.l = 0
         self.r = 0
+        self.hall_offset = 0.
 
     def move(self, l=100, r=100):
         self.io.setMotors(l, -r)
@@ -117,6 +118,8 @@ class Motors:
 
         value = float(value)
 
+        value += self.hall_offset * HALL_ANGLE
+
         if full:
             log('Turning by angle {} but performing full rotation for better precision'.format(value))
             value += 2. * pi
@@ -131,6 +134,7 @@ class Motors:
         t = value / self.turn_speed
         time.sleep(t)
         self.halt()
+        self.hall_offset = value/HALL_ANGLE
 
     def go_forward(self, distance):
         """
@@ -138,6 +142,8 @@ class Motors:
         :param distance: distance in cm
         """
         distance = float(distance)
+
+        distance += self.hall_offset * HALL_PERIMETER
 
         log('Going forward by distance: {}'.format(distance))
 
@@ -151,6 +157,7 @@ class Motors:
         t = distance / self.speed
         time.sleep(t)
         self.halt()
+        self.hall_offset = distance/HALL_PERIMETER
         log('Going forward by remaining distance {} in time {}'.format(distance, t))
 
     # TODO nonhalting backwards
