@@ -16,7 +16,10 @@ class CubeDetector:
     def __init__(self, which, path=None):
         self.path = path
         self.which = which
-        self.detector = cv2.ORB_create(nfeatures=5000)
+        try:
+            self.detector = cv2.ORB_create(nfeatures=5000)
+        except AttributeError:
+            self.detector = cv2.ORB(nfeatures=5000)
         self.model = self.load_cube_model()
         self.matcher = self.init_matcher()
 
@@ -32,6 +35,19 @@ class CubeDetector:
         else:
             path = self.path
         model_img = cv2.imread(path)
+
+        # maybe we're on DICE
+        if model_img is None and self.path is None:
+            base_path = os.path.dirname(os.path.dirname(os.path.realpath('__file__'))) + '/'
+            path = base_path + 'robot/vision/small_models/{}.png'.format(self.which)
+            model_img = cv2.imread(path)
+
+        # maybe we're testing
+        if model_img is None and self.path is None:
+            base_path = os.path.dirname(os.path.dirname(os.path.realpath('__file__'))) + '/'
+            path = base_path + 'vision/small_models/{}.png'.format(self.which)
+            model_img = cv2.imread(path)
+
         assert model_img is not None, 'failed to load model ' + path
         features = self.detect_features(model_img)
         return {

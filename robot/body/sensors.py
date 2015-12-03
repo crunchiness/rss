@@ -58,6 +58,13 @@ class Sensors:
         self.get_analogue()
         return self.analogue[1]
 
+    def get_irs_raw(self):
+        self.get_analogue()
+        return {
+            'IR_left': self.analogue[0],
+            'IR_right': self.analogue[1]
+        }
+
     def get_ir_right(self):
         value = 0
         for i in range(SAMPLES):

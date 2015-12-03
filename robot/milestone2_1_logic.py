@@ -4,15 +4,30 @@ import numpy as np
 from odometry_localisation import OdometryLocalisation
 from utils import orientate, euclidean_distance
 from robot.state.map import NODES_MILESTONE2_CORNERROOM, NODES_MILESTONE2_MIDDLEROOM
+from vision.calculations import correct_orientation_angle
 
 TARGET_CUBE = 'mario'
 DIST_CONST = 20
+X = 143+33
+Y = 77
+ANGLE = np.pi/2  # degrees
+
+nodes = NODES_MILESTONE2_CORNERROOM
+
+
+def correct_orientation(mean, motors):
+    turn_angle = correct_orientation_angle(mean, (800.0, 600.0))
+    log(u'Turning towards the resource by {0:.2f}\N{DEGREE SIGN}'.format(round(turn_angle * 180. / np.pi, 2)))
+    motors.turn_by(turn_angle)
 
 # nodes = NODES_MILESTONE2_MIDDLEROOM
 nodes = NODES_MILESTONE2_CORNERROOM
 
 def S5_just_go(motors, sensors, vision, particles):
+    motors.go_forward(15*HALL_PERIMETER)
+    particles.forward(15*HALL_PERIMETER)
     particles_measure_sense_resample(sensors, particles)
+
     # motors.go_forward(15*HALL_PERIMETER)
     # particles.forward(15*HALL_PERIMETER)
     # particles_measure_sense_resample(sensors, particles)
@@ -102,8 +117,7 @@ def particles_measure_sense_resample(sensors, particles):
         'sonar': sonar_reading if sonar_reading is not None else 0,
     }
 
-
-    particles.sense(measurements)
+    particles.sense(sensors.get_irs_raw())
     particles.resample()
     x,y,o = particles.get_position_by_weighted_average()
     log('Measurement predictions: {}'
@@ -120,22 +134,3 @@ def milestone2(sensors, motors, vision, particles):
             S5_just_go(motors, sensors, vision, particles)
         else:
             raise Exception('Unknown state {0}'.format(state['mode']))
-
-
-def correct_orientation(mean, motors):
-    h = 7  # camera height
-    d = 24  # distance from center
-    field_of_view = np.pi / 3.  # degrees
-    width, height = (800., 600.)
-    x, y = mean
-    alpha = ((width / 2. - x) / width) * field_of_view
-    beta = ((height / 2. - y) / height) * field_of_view
-    if beta > 0:
-        return  # nonsense
-    else:
-        beta = -beta
-    numerator = h * np.tan(alpha)
-    denominator = h + d * np.tan(beta)
-    turn_angle = np.arctan(numerator / denominator)
-    log('Turning towards the cube by {} DEGREES (don\'t worry it\'s ok)'.format(turn_angle * 180. / np.pi))
-    motors.turn_by(turn_angle)
